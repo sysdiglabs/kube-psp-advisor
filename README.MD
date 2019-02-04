@@ -7,7 +7,7 @@
 
 ## Build and Run as Container
 1. ```docker build -t <Image Name> container/Dockerfile .```
-2. ```docker run -it -v ~/.kube:/root/.kube -v ~/.aws:/root/.aws <Image Name>```
+2. ```docker run -v ~/.kube:/root/.kube -v ~/.aws:/root/.aws <Image Name>``` (the `.aws` folder mount is optional and totally depends on your clould provider)
 
 ## Use Cases
 1. Help verify the deployment, daemonset settings in cluster and plan to reduce unnecessary privileges/resources
