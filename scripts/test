@@ -1,0 +1,10 @@
+#!/bin/bash
+
+go test ./...
+
+kubectl delete -f test-yaml/base-busybox.yaml
+kubectl apply -f test-yaml/base-busybox.yaml
+
+sleep 5
+
+./kube-psp-advisor

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-busybox
+  namespace: default 
+spec:
+  containers:
+  - name: my-busybox-container
+    image: busybox
+    args: ["sleep", "3000"]
+    securityContext:
+      privileged: true
+      runAsNonRoot: false 
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: true
+      capabilities:
+        add:
+        - SYS_ADMIN
+        drop:
+        - SYS_CHROOT
+  hostPID: true
+  hostIPC: true
+  hostNetwork: true

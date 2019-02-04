@@ -1,0 +1,4 @@
+vendor*
+.idea*
+kube-psp-advisor
+psp.yaml

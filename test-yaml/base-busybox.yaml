@@ -1,0 +1,268 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: psp-test
+---
+apiVersion: v1
+kind: Pod 
+metadata:
+  name: busy-pod
+  namespace: psp-test
+spec:
+  containers:
+  - name: my-busybox
+    image: busybox 
+    volumeMounts:
+    - mountPath: /test-hostpath
+      name: test-volume
+    command:
+    - sleep
+    - "3600"
+    securityContext:
+      privileged: false
+      runAsNonRoot: false 
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: true
+  hostPID: false 
+  hostIPC: false
+  hostNetwork: true
+  volumes:
+  - name: test-volume
+    hostPath:
+      # directory location on host
+      path: /usr/bin
+      # this field is optional
+      type: Directory
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: busy-job
+  namespace: psp-test
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: my-busybox
+        image: busybox 
+        volumeMounts:
+        - mountPath: /test-hostpath
+          name: test-volume
+        command:
+        - sleep
+        - "3600"
+        securityContext:
+          privileged: false
+          runAsNonRoot: true 
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          runAsUser: 10001
+      hostPID: false 
+      hostIPC: true
+      hostNetwork: false 
+      volumes:
+      - name: test-volume
+        hostPath:
+          # directory location on host
+          path: /usr/bin
+          # this field is optional
+          type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busy-deploy
+  namespace: psp-test
+  labels: 
+    app: busy-deploy
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: busy-deploy
+  template:
+    metadata:
+      labels:
+        app: busy-deploy
+    spec:
+      containers:
+      - name: my-busybox
+        image: busybox 
+        volumeMounts:
+        - mountPath: /test-hostpath
+          name: test-volume
+        command:
+        - sleep
+        - "3600"
+        securityContext:
+          privileged: false
+          runAsNonRoot: true 
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          runAsUser: 10001
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - NET_ADMIN
+            drop:
+            - SYS_CHROOT
+      hostPID: true 
+      hostIPC: false 
+      hostNetwork: false 
+      volumes:
+      - name: test-volume
+        hostPath:
+          # directory location on host
+          path: /tmp
+          # this field is optional
+          type: Directory
+---
+apiVersion: v1
+kind: ReplicationController 
+metadata:
+  name: busy-rc
+  namespace: psp-test
+  labels: 
+    app: busy-rc
+spec:
+  replicas: 2
+  selector:
+    app: busy-rc
+  template:
+    metadata:
+      labels:
+        app: busy-rc
+    spec:
+      containers:
+      - name: my-busybox
+        image: busybox 
+        volumeMounts:
+        - mountPath: /test-hostpath
+          name: test-volume
+        command:
+        - sleep
+        - "3600"
+        securityContext:
+          privileged: true
+          runAsNonRoot: false 
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: true
+          runAsUser: 10001
+      hostPID: false 
+      hostIPC: false 
+      hostNetwork: false 
+      volumes:
+      - name: test-volume
+        hostPath:
+          # directory location on host
+          path: /usr/sbin
+          # this field is optional
+          type: Directory
+---
+apiVersion: apps/v1
+kind: DaemonSet 
+metadata:
+  name: busy-ds
+  namespace: psp-test
+  labels: 
+    app: busy-ds
+spec:
+  selector:
+    matchLabels:
+      app: busy-ds
+  template:
+    metadata:
+      labels:
+        app: busy-ds
+    spec:
+      containers:
+      - name: my-busybox
+        image: busybox 
+        volumeMounts:
+        - mountPath: /test-hostpath
+          name: test-volume
+        command:
+        - sleep
+        - "3600"
+        securityContext:
+          privileged: false
+          runAsNonRoot: true 
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: true
+          runAsUser: 10001
+      hostPID: false
+      hostIPC: false
+      hostNetwork: false 
+      volumes:
+      - name: test-volume
+        hostPath:
+          # directory location on host
+          path: /bin
+          # this field is optional
+          type: Directory
+---
+apiVersion: apps/v1
+kind: ReplicaSet 
+metadata:
+  name: busy-rs
+  namespace: psp-test
+  labels: 
+    app: busy-rs
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: busy-rs
+  template:
+    metadata:
+      labels:
+        app: busy-rs
+    spec:
+      containers:
+      - name: my-busybox
+        image: busybox
+        volumeMounts:
+        - name: config-vol
+          mountPath: /game/config
+        command:
+        - sleep
+        - "3600"
+        securityContext:
+          privileged: false 
+          runAsNonRoot: true 
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          runAsUser: 20002
+          capabilities:
+            add:
+            - SYS_ADMIN
+            drop:
+            - SYS_CHROOT
+      hostPID: true
+      hostIPC: true
+      hostNetwork: true
+      volumes:
+      - name: config-vol
+        configMap:
+          name: game-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-config
+  namespace: psp-test
+data:
+  game.properties: |
+    enemies=aliens
+    lives=3
+    enemies.cheat=true
+    enemies.cheat.level=noGoodRotten
+    secret.code.passphrase=UUDDLRLRBABAS
+    secret.code.allowed=true
+    secret.code.lives=30
+  ui.properties: |
+    color.good=purple
+    color.bad=yellow
+    allow.textmode=true
+    how.nice.to.look=fairlyNice
