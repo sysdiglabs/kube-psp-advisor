@@ -1,16 +1,13 @@
 # Kube PodSecurityPolicy Advisor
 
-## Build
-```
-make build
-```
+## Build and Run locally
+1. ```make build```
+2. ```./kube-psp-advisor``` to generate Pod Security Policy based on running cluster configuration
+3. ```./kube-psp-advisor --report``` to print the details reports (why this PSP is recommended for the cluster)
 
-## Run
-1. ```./kube-psp-advisor``` to generate Pod Security Policy based on running cluster configuration
-2. ```./kube-psp-advisor --report``` to print the details reports (why this PSP is recommended for the cluster)
-
-## Run as Container
-1. ```docker run -it -v ~/.kube:/root/.kube -v ~/.aws:/root/.aws <Your Image built from Dockerfile>```
+## Build and Run as Container
+1. ```docker build -t <Image Name> container/Dockerfile .```
+2. ```docker run -it -v ~/.kube:/root/.kube -v ~/.aws:/root/.aws <Image Name>```
 
 ## Use Cases
 1. Help verify the deployment, daemonset settings in cluster and plan to reduce unnecessary privileges/resources
