@@ -8,6 +8,7 @@ make build
 ## Run
 1. ```./kube-psp-advisor``` to generate Pod Security Policy based on running cluster configuration
 2. ```./kube-psp-advisor --report``` to print the details reports (why this PSP is recommended for the cluster)
+3. (run as container) ```docker run -it -v ~/.kube:/root/.kube -v ~/.aws:/root/.aws kaizheh/kube-psp-advisor```
 
 ## Use Cases
 1. Help verify the deployment, daemonset settings in cluster and plan to reduce unnecessary privileges/resources
