@@ -1,10 +1,10 @@
 package processor
 
 import (
+	"kube-psp-advisor/advisor/types"
+	"kube-psp-advisor/utils"
 	"reflect"
 	"strings"
-	"sysdig-labs/kube-psp-advisor/advisor/types"
-	"sysdig-labs/kube-psp-advisor/utils"
 
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"

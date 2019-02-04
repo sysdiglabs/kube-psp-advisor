@@ -1,7 +1,7 @@
 package report
 
 import (
-	"sysdig-labs/kube-psp-advisor/advisor/types"
+	"kube-psp-advisor/advisor/types"
 )
 
 const (

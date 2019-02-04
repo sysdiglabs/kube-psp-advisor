@@ -2,9 +2,9 @@ package processor
 
 import (
 	"fmt"
-	"sysdig-labs/kube-psp-advisor/advisor/report"
-	"sysdig-labs/kube-psp-advisor/advisor/types"
-	"sysdig-labs/kube-psp-advisor/utils"
+	"kube-psp-advisor/advisor/report"
+	"kube-psp-advisor/advisor/types"
+	"kube-psp-advisor/utils"
 	"time"
 
 	"k8s.io/api/core/v1"
