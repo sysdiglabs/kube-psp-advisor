@@ -2,12 +2,13 @@ package processor
 
 import (
 	"fmt"
-	"kube-psp-advisor/advisor/report"
-	"kube-psp-advisor/advisor/types"
-	"kube-psp-advisor/utils"
 	"time"
 
-	"k8s.io/api/core/v1"
+	"github.com/sysdiglabs/kube-psp-advisor/advisor/report"
+	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
+	"github.com/sysdiglabs/kube-psp-advisor/utils"
+
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"

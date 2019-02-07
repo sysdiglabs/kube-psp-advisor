@@ -2,8 +2,9 @@ package main
 
 import (
 	"flag"
-	"kube-psp-advisor/advisor"
 	"path/filepath"
+
+	"github.com/sysdiglabs/kube-psp-advisor/advisor"
 
 	"k8s.io/client-go/util/homedir"
 )
