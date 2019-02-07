@@ -3,9 +3,10 @@ package advisor
 import (
 	"encoding/json"
 	"fmt"
-	"kube-psp-advisor/advisor/processor"
-	"kube-psp-advisor/advisor/report"
 	"os"
+
+	"github.com/sysdiglabs/kube-psp-advisor/advisor/processor"
+	"github.com/sysdiglabs/kube-psp-advisor/advisor/report"
 
 	"k8s.io/api/policy/v1beta1"
 	k8sJSON "k8s.io/apimachinery/pkg/runtime/serializer/json"
