@@ -10,6 +10,29 @@
   version = "v0.35.1"
 
 [[projects]]
+  digest = "1:64d222925bd333f4fa6d12e7c4b577a414fd79a1177efd3e86b0a21bd2c2a0f5"
+  name = "github.com/Azure/go-autorest"
+  packages = [
+    "autorest",
+    "autorest/adal",
+    "autorest/azure",
+    "autorest/date",
+    "logger",
+    "version",
+  ]
+  pruneopts = "UT"
+  revision = "9bc4033dd347c7f416fca46b2f42a043dc1fbdf6"
+  version = "v10.15.5"
+
+[[projects]]
+  digest = "1:76dc72490af7174349349838f2fe118996381b31ea83243812a97e5a0fd5ed55"
+  name = "github.com/dgrijalva/jwt-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
+
+[[projects]]
   digest = "1:b7a8552c62868d867795b63eaf4f45d3e92d36db82b428e680b9c95a8c33e5b1"
   name = "github.com/gogo/protobuf"
   packages = [
@@ -66,6 +89,22 @@
   ]
   pruneopts = "UT"
   revision = "0c5108395e2debce0d731cf0287ddf7242066aba"
+
+[[projects]]
+  branch = "master"
+  digest = "1:eef3720f9fbe65f09976924ad21af11a3e2bf217aa7c4bf1766feb022ff934c8"
+  name = "github.com/gophercloud/gophercloud"
+  packages = [
+    ".",
+    "openstack",
+    "openstack/identity/v2/tenants",
+    "openstack/identity/v2/tokens",
+    "openstack/identity/v3/tokens",
+    "openstack/utils",
+    "pagination",
+  ]
+  pruneopts = "UT"
+  revision = "157cc5982e45ac35bc5e9ba06f138895c127303f"
 
 [[projects]]
   digest = "1:878f0defa9b853f9acfaf4a162ba450a89d0050eff084f9fe7f5bd15948f172a"
@@ -244,8 +283,8 @@
   version = "v2.2.2"
 
 [[projects]]
-  branch = "master"
-  digest = "1:5d9a48e3144dfc06d3c5218b38164102f62300e83ffdd9a2d87b3c0b4135612f"
+  branch = "release-1.13"
+  digest = "1:2d2f8ae5a583a56906f10cfa3784b0bf7376d0069765fb438fa0736d266a6439"
   name = "k8s.io/api"
   packages = [
     "admissionregistration/v1alpha1",
@@ -281,7 +320,7 @@
     "storage/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "173ce66c1e39d1d0f56e0b3347ff2988068aecd0"
+  revision = "a61488babbd64b32da2ed985e2e70fe7b4ffc05a"
 
 [[projects]]
   digest = "1:a83d3d972031f693922d119afbcca180fa521a3c7bb5f3e70e288ce6a601168a"
@@ -327,7 +366,7 @@
   revision = "98853ca904e81a25e2000cae7f077dc30f81b85f"
 
 [[projects]]
-  digest = "1:bac06e69e8c8387d68053aa71f4e96dd8b8afef54135b55f17ff9ccec84fc74e"
+  digest = "1:63f1dd4b853d891b2459875cd38c86a99bc11d839e5c2dbb703cdeb6f0bcaf6c"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -368,8 +407,12 @@
     "pkg/apis/clientauthentication/v1alpha1",
     "pkg/apis/clientauthentication/v1beta1",
     "pkg/version",
+    "plugin/pkg/client/auth",
+    "plugin/pkg/client/auth/azure",
     "plugin/pkg/client/auth/exec",
     "plugin/pkg/client/auth/gcp",
+    "plugin/pkg/client/auth/oidc",
+    "plugin/pkg/client/auth/openstack",
     "rest",
     "rest/watch",
     "third_party/forked/golang/template",
@@ -416,6 +459,7 @@
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/runtime/serializer/json",
     "k8s.io/client-go/kubernetes",
+    "k8s.io/client-go/plugin/pkg/client/auth",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
     "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/util/homedir",

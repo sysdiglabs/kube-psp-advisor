@@ -7,6 +7,8 @@ import (
 	"github.com/sysdiglabs/kube-psp-advisor/advisor"
 
 	"k8s.io/client-go/util/homedir"
+	// Initialize all known client auth plugins.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 func main() {
