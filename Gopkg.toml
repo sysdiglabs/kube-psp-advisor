@@ -26,12 +26,17 @@
 
 
 [[constraint]]
-  branch = "master"
+  branch = "release-1.13"
   name = "k8s.io/api"
 
 [[constraint]]
   name = "k8s.io/client-go"
   version = "9.0.0"
+
+[[override]]
+  name = "github.com/Azure/go-autorest"
+  # From https://github.com/kubernetes/kubernetes/blob/release-1.12/Godeps/Godeps.json#L83
+  version = "v10.14.0"
 
 [prune]
   go-tests = true
