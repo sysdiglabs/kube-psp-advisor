@@ -114,6 +114,11 @@ func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList [
 		if sc.AllowPrivilegeEscalation != nil && !*sc.AllowPrivilegeEscalation {
 			notAllowPrivilegeEscationCount++
 		}
+
+		// set host ports
+		for _, port := range sc.HostPorts {
+			psp.Spec.HostPorts = append(psp.Spec.HostPorts, v1beta1.HostPortRange{Min: port, Max: port})
+		}
 	}
 
 	// set allowedPrivilegeEscalation
