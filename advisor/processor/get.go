@@ -20,9 +20,11 @@ const (
 	ReplicationController = "ReplicationController"
 	Job                   = "Job"
 	CronJob               = "CronJob"
+
+	volumeTypeSecret = "secret"
 )
 
-func getSecuritySpec(metadata types.Metadata, namespace string, spec v1.PodSpec) ([]types.ContainerSecuritySpec, types.PodSecuritySpec) {
+func getSecuritySpec(metadata types.Metadata, namespace string, spec v1.PodSpec, sa v1.ServiceAccount) ([]types.ContainerSecuritySpec, types.PodSecuritySpec) {
 	cssList := []types.ContainerSecuritySpec{}
 	podSecuritySpec := types.PodSecuritySpec{
 		Metadata:       metadata,
@@ -30,7 +32,7 @@ func getSecuritySpec(metadata types.Metadata, namespace string, spec v1.PodSpec)
 		HostPID:        spec.HostPID,
 		HostNetwork:    spec.HostNetwork,
 		HostIPC:        spec.HostIPC,
-		VolumeTypes:    getVolumeTypes(spec),
+		VolumeTypes:    getVolumeTypes(spec, sa),
 		MountHostPaths: getVolumeHostPaths(spec),
 	}
 
@@ -71,10 +73,11 @@ func (p *Processor) getSecuritySpecFromDaemonSets() ([]types.ContainerSecuritySp
 
 	for _, ds := range daemonSetList.Items {
 		p.resourceNamePrefix[ds.Name] = true
+		sa := p.serviceAccountMap[ds.Spec.Template.Spec.ServiceAccountName]
 		cspList2, podSecurityPosture := getSecuritySpec(types.Metadata{
 			Name: ds.Name,
 			Kind: DaemonSet,
-		}, ds.Namespace, ds.Spec.Template.Spec)
+		}, ds.Namespace, ds.Spec.Template.Spec, sa)
 
 		pspList = append(pspList, podSecurityPosture)
 		cspList = append(cspList, cspList2...)
@@ -100,10 +103,11 @@ func (p *Processor) getSecuritySpecFromReplicaSets() ([]types.ContainerSecurityS
 		}
 
 		p.resourceNamePrefix[rs.Name] = true
+		sa := p.serviceAccountMap[rs.Spec.Template.Spec.ServiceAccountName]
 		cspList2, psc := getSecuritySpec(types.Metadata{
 			Name: rs.Name,
 			Kind: ReplicaSet,
-		}, rs.Namespace, rs.Spec.Template.Spec)
+		}, rs.Namespace, rs.Spec.Template.Spec, sa)
 
 		pssList = append(pssList, psc)
 		cssList = append(cssList, cspList2...)
@@ -125,10 +129,11 @@ func (p *Processor) getSecuritySpecFromStatefulSets() ([]types.ContainerSecurity
 
 	for _, sts := range statefulSetList.Items {
 		p.resourceNamePrefix[sts.Name] = true
+		sa := p.serviceAccountMap[sts.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := getSecuritySpec(types.Metadata{
 			Name: sts.Name,
 			Kind: StatefulSet,
-		}, sts.Namespace, sts.Spec.Template.Spec)
+		}, sts.Namespace, sts.Spec.Template.Spec, sa)
 
 		pssList = append(pssList, pss)
 		cssList = append(cssList, cspList2...)
@@ -150,10 +155,11 @@ func (p *Processor) getSecuritySpecFromReplicationController() ([]types.Containe
 
 	for _, rc := range replicationControllerList.Items {
 		p.resourceNamePrefix[rc.Name] = true
+		sa := p.serviceAccountMap[rc.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := getSecuritySpec(types.Metadata{
 			Name: rc.Name,
 			Kind: ReplicationController,
-		}, rc.Namespace, rc.Spec.Template.Spec)
+		}, rc.Namespace, rc.Spec.Template.Spec, sa)
 
 		pssList = append(pssList, pss)
 		cssList = append(cssList, cspList2...)
@@ -175,10 +181,11 @@ func (p *Processor) getSecuritySpecFromCronJobs() ([]types.ContainerSecuritySpec
 
 	for _, cronJob := range jobList.Items {
 		p.resourceNamePrefix[cronJob.Name] = true
+		sa := p.serviceAccountMap[cronJob.Spec.JobTemplate.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := getSecuritySpec(types.Metadata{
 			Name: cronJob.Name,
 			Kind: CronJob,
-		}, cronJob.Namespace, cronJob.Spec.JobTemplate.Spec.Template.Spec)
+		}, cronJob.Namespace, cronJob.Spec.JobTemplate.Spec.Template.Spec, sa)
 
 		pssList = append(pssList, pss)
 		cssList = append(cssList, cspList2...)
@@ -204,10 +211,11 @@ func (p *Processor) getSecuritySpecFromJobs() ([]types.ContainerSecuritySpec, []
 		}
 
 		p.resourceNamePrefix[job.Name] = true
+		sa := p.serviceAccountMap[job.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := getSecuritySpec(types.Metadata{
 			Name: job.Name,
 			Kind: Job,
-		}, job.Namespace, job.Spec.Template.Spec)
+		}, job.Namespace, job.Spec.Template.Spec, sa)
 
 		pssList = append(pssList, pss)
 		cssList = append(cssList, cspList2...)
@@ -229,10 +237,11 @@ func (p *Processor) getSecuritySpecFromDeployments() ([]types.ContainerSecurityS
 
 	for _, deploy := range deployments.Items {
 		p.resourceNamePrefix[deploy.Name] = true
+		sa := p.serviceAccountMap[deploy.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := getSecuritySpec(types.Metadata{
 			Name: deploy.Name,
 			Kind: Deployment,
-		}, deploy.Namespace, deploy.Spec.Template.Spec)
+		}, deploy.Namespace, deploy.Spec.Template.Spec, sa)
 
 		pssList = append(pssList, pss)
 		cssList = append(cssList, cspList2...)
@@ -266,10 +275,11 @@ func (p *Processor) getSecuritySpecFromPods() ([]types.ContainerSecuritySpec, []
 			continue
 		}
 
+		sa := p.serviceAccountMap[pod.Spec.ServiceAccountName]
 		cspList2, podSecurityPosture := getSecuritySpec(types.Metadata{
 			Name: pod.Name,
 			Kind: Pod,
-		}, pod.Namespace, pod.Spec)
+		}, pod.Namespace, pod.Spec, sa)
 
 		pssList = append(pssList, podSecurityPosture)
 		cssList = append(cssList, cspList2...)
@@ -278,12 +288,33 @@ func (p *Processor) getSecuritySpecFromPods() ([]types.ContainerSecuritySpec, []
 	return cssList, pssList, nil
 }
 
-func getVolumeTypes(spec v1.PodSpec) (volumeTypes []string) {
+func (p *Processor) getServiceAccountMap() (map[string]v1.ServiceAccount, error) {
+	serviceAccountMap := map[string]v1.ServiceAccount{}
+
+	serviceAccounts, err := p.k8sClient.CoreV1().ServiceAccounts(p.namespace).List(v12.ListOptions{})
+	if err != nil {
+		return serviceAccountMap, err
+	}
+
+	for _, sa := range serviceAccounts.Items {
+		serviceAccountMap[sa.Name] = sa
+	}
+
+	return serviceAccountMap, nil
+}
+
+func getVolumeTypes(spec v1.PodSpec, sa v1.ServiceAccount) (volumeTypes []string) {
 	volumeTypeMap := map[string]bool{}
 	for _, v := range spec.Volumes {
 		if volumeType := getVolumeType(v); volumeType != "" {
 			volumeTypeMap[getVolumeType(v)] = true
 		}
+	}
+
+	// If don't opt out of automounting API credentils for a service account
+	// or a particular pod, "secret" needs to be into PSP allowed volume types.
+	if mountServiceAccountToken(spec, sa) {
+		volumeTypeMap[volumeTypeSecret] = true
 	}
 
 	volumeTypes = utils.MapToArray(volumeTypeMap)
@@ -447,4 +478,18 @@ func getCapabilities(sc *v1.SecurityContext) (addList []string, dropList []strin
 		dropList = append(dropList, string(cap))
 	}
 	return
+}
+
+func mountServiceAccountToken(spec v1.PodSpec, sa v1.ServiceAccount) bool {
+	// First Pod's preference is checked
+	if spec.AutomountServiceAccountToken != nil {
+		return *spec.AutomountServiceAccountToken
+	}
+
+	// Then service account's
+	if sa.AutomountServiceAccountToken != nil {
+		return *sa.AutomountServiceAccountToken
+	}
+
+	return true
 }
