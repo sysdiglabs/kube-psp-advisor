@@ -51,6 +51,7 @@ func getSecuritySpec(metadata types.Metadata, namespace string, spec v1.PodSpec)
 			Privileged:               getPrivileged(container.SecurityContext),
 			RunAsGroup:               getRunAsGroup(container.SecurityContext, spec.SecurityContext),
 			RunAsUser:                getRunAsUser(container.SecurityContext, spec.SecurityContext),
+			HostPorts:                getHostPorts(container.Ports),
 		}
 		cssList = append(cssList, csc)
 	}

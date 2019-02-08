@@ -52,6 +52,7 @@ type ContainerSecuritySpec struct {
 	AllowPrivilegeEscalation *bool    `json:"allowPrivilegeEscalation,omitempty"`
 	RunAsUser                *int64   `json:"runAsUser,omitempty"`
 	RunAsGroup               *int64   `json:"runAsGroup,omitempty"`
+	HostPorts                []int32  `json:"hostPorts,omitempty"`
 }
 
 type PodSecuritySpec struct {
