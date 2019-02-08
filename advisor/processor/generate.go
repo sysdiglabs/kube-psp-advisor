@@ -225,7 +225,7 @@ func (p *Processor) GetSecuritySpec() ([]types.ContainerSecuritySpec, []types.Po
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	// get security spec from dameonset
+	// get security spec from daemonsets
 	cspList0, pspList0, err := p.getSecuritySpecFromDaemonSets()
 
 	if err != nil {
