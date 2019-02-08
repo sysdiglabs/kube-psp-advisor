@@ -18,6 +18,7 @@ type Processor struct {
 	k8sClient          *kubernetes.Clientset
 	resourceNamePrefix map[string]bool
 	namespace          string
+	serviceAccountMap  map[string]v1.ServiceAccount
 }
 
 func NewProcessor(kubeconfig string) (*Processor, error) {
@@ -229,6 +230,13 @@ func (p *Processor) GenerateReport(cssList []types.ContainerSecuritySpec, pssLis
 func (p *Processor) GetSecuritySpec() ([]types.ContainerSecuritySpec, []types.PodSecuritySpec, error) {
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
+
+	// get and cache service account list in the specified namespace
+	var err error
+	p.serviceAccountMap, err = p.getServiceAccountMap()
+	if err != nil {
+		return cssList, pssList, err
+	}
 
 	// get security spec from daemonsets
 	cspList0, pspList0, err := p.getSecuritySpecFromDaemonSets()
