@@ -117,9 +117,10 @@ func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList [
 		}
 
 		// set host ports
-		for _, port := range sc.HostPorts {
-			psp.Spec.HostPorts = append(psp.Spec.HostPorts, v1beta1.HostPortRange{Min: port, Max: port})
-		}
+		// TODO: need to integrate with listening port during the runtime, might cause false positive.
+		//for _, port := range sc.HostPorts {
+		//	psp.Spec.HostPorts = append(psp.Spec.HostPorts, v1beta1.HostPortRange{Min: port, Max: port})
+		//}
 	}
 
 	// set allowedPrivilegeEscalation
