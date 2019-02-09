@@ -25,7 +25,6 @@
 - readOnlyRootFilesystem
 - runAsUser
 - Volume
-- hostPorts
 
 
 ## Sample Pod Security Policy
