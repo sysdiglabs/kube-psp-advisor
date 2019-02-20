@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: my-busybox
-  namespace: default 
+  namespace: psp-test 
 spec:
   containers:
   - name: my-busybox-container

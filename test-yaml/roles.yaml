@@ -1,0 +1,64 @@
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: psp-test-user
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: pod-creator-role
+rules:
+- apiGroups:
+  - core 
+  resources:
+  - pods
+  - deployments
+  - replicasets 
+  verbs:
+  - create 
+  - list
+  - get
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: pod-creator-rolebinding
+  namespace: psp-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-creator-role 
+subjects:
+# Example: A specific service account in my-namespace
+- kind: ServiceAccount # Omit apiGroup
+  name: psp-test-user
+  namespace: psp-test
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: psp-adopter-clusterrole
+rules:
+- apiGroups:
+  - extensions
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - pod-security-policy-test
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: psp-adopter-rolebinding
+  namespace: psp-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: psp-adopter-clusterrole
+subjects:
+# Example: A specific service account in my-namespace
+- kind: ServiceAccount # Omit apiGroup
+  name: psp-test-user
+  namespace: psp-test
