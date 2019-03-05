@@ -18,6 +18,7 @@
 - allowPrivilegeEscalation
 - allowedCapabilities
 - allowedHostPaths
+  - readOnly
 - hostIPC
 - hostNetwork
 - hostPID
