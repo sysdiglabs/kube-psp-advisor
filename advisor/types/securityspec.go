@@ -60,13 +60,13 @@ type ContainerSecuritySpec struct {
 }
 
 type PodSecuritySpec struct {
-	Metadata       Metadata `json:"metadata"`
-	Namespace      string   `json:"namespace"`
-	HostPID        bool     `json:"hostPID,omitempty"`
-	HostNetwork    bool     `json:"hostMetwork,omitempty"`
-	HostIPC        bool     `json:"hostIPC,omitempty"`
-	VolumeTypes    []string `json:"volumeTypes,omitempty"`
-	MountHostPaths []string `json:"mountedHostPath,omitempty"`
+	Metadata       Metadata        `json:"metadata"`
+	Namespace      string          `json:"namespace"`
+	HostPID        bool            `json:"hostPID,omitempty"`
+	HostNetwork    bool            `json:"hostMetwork,omitempty"`
+	HostIPC        bool            `json:"hostIPC,omitempty"`
+	VolumeTypes    []string        `json:"volumeTypes,omitempty"`
+	MountHostPaths map[string]bool `json:"mountedHostPath,omitempty"`
 }
 
 type Metadata struct {

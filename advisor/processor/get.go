@@ -42,6 +42,7 @@ func getSecuritySpec(metadata types.Metadata, namespace string, spec v1.PodSpec,
 			Metadata:                 metadata,
 			ContainerName:            container.Name,
 			ImageName:                container.Image,
+			PodName:                  metadata.Name,
 			Namespace:                namespace,
 			HostName:                 spec.NodeName,
 			Capabilities:             getEffectiveCapablities(addCapList, dropCapList),
@@ -321,17 +322,30 @@ func getVolumeTypes(spec v1.PodSpec, sa v1.ServiceAccount) (volumeTypes []string
 	return
 }
 
-func getVolumeHostPaths(spec v1.PodSpec) (hostPaths []string) {
+func getVolumeHostPaths(spec v1.PodSpec) map[string]bool {
 	hostPathMap := map[string]bool{}
 
-	for _, v := range spec.Volumes {
-		if v.HostPath != nil {
-			hostPathMap[v.HostPath.Path] = true
+	containerMountMap := map[string]bool{}
+
+	for _, c := range spec.Containers {
+		for _, vm := range c.VolumeMounts {
+			if _, exists := containerMountMap[vm.Name]; !exists {
+				containerMountMap[vm.Name] = vm.ReadOnly
+			} else {
+				containerMountMap[vm.Name] = containerMountMap[vm.Name] && vm.ReadOnly
+			}
 		}
 	}
 
-	hostPaths = utils.MapToArray(hostPathMap)
-	return
+	for _, v := range spec.Volumes {
+		if v.HostPath != nil {
+			if _, exists := containerMountMap[v.Name]; exists {
+				hostPathMap[v.HostPath.Path] = containerMountMap[v.Name]
+			}
+		}
+	}
+
+	return hostPathMap
 }
 
 func getVolumeType(v v1.Volume) string {

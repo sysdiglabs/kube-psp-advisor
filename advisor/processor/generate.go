@@ -8,7 +8,7 @@ import (
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
 	"github.com/sysdiglabs/kube-psp-advisor/utils"
 
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -22,6 +22,7 @@ type Processor struct {
 	serverGitVersion   string
 }
 
+// NewProcessor returns a new processor
 func NewProcessor(kubeconfig string) (*Processor, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -89,8 +90,12 @@ func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList [
 			volumeTypes[t] = true
 		}
 
-		for _, path := range sc.MountHostPaths {
-			hostPaths[path] = true
+		for path, readOnly := range sc.MountHostPaths {
+			if _, exists := hostPaths[path]; !exists {
+				hostPaths[path] = readOnly
+			} else {
+				hostPaths[path] = readOnly && hostPaths[path]
+			}
 		}
 	}
 
@@ -155,14 +160,12 @@ func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList [
 	}
 
 	// set allowed host path
-	hostPathList := utils.MapToArray(hostPaths)
+	enforceReadOnly, _ := utils.CompareVersion(p.serverGitVersion, types.Version1_11)
 
-	readOnly, _ := utils.CompareVersion(p.serverGitVersion, types.Version1_11)
-
-	for _, path := range hostPathList {
+	for path, readOnly := range hostPaths {
 		psp.Spec.AllowedHostPaths = append(psp.Spec.AllowedHostPaths, v1beta1.AllowedHostPath{
 			PathPrefix: path,
-			ReadOnly:   readOnly,
+			ReadOnly:   readOnly || enforceReadOnly,
 		})
 	}
 
@@ -224,6 +227,7 @@ func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList [
 	return psp
 }
 
+// GenerateReport generate a JSON report
 func (p *Processor) GenerateReport(cssList []types.ContainerSecuritySpec, pssList []types.PodSecuritySpec) *report.Report {
 	r := report.NewReport()
 
