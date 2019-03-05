@@ -6,7 +6,7 @@
 3. ```./kube-psp-advisor --report``` to print the details reports (why this PSP is recommended for the cluster)
 
 ## Build and Run as Container
-1. ```docker build -t <Image Name> container/Dockerfile .```
+1. ```docker build -t <Image Name> -f container/Dockerfile .```
 2. ```docker run -v ~/.kube:/root/.kube -v ~/.aws:/root/.aws <Image Name>``` (the `.aws` folder mount is optional and totally depends on your clould provider)
 
 ## Use Cases
