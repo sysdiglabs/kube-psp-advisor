@@ -19,6 +19,10 @@ var (
 	}
 )
 
+const (
+	Version1_11 = "v1.11"
+)
+
 //PodSecurityPolicy Recommendation System help in the following attributes:
 //	1. allowPrivilegeEscalation - done
 //	2. allowedCapabilities - done
