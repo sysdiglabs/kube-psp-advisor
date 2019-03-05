@@ -19,6 +19,7 @@ type Processor struct {
 	resourceNamePrefix map[string]bool
 	namespace          string
 	serviceAccountMap  map[string]v1.ServiceAccount
+	serverGitVersion   string
 }
 
 func NewProcessor(kubeconfig string) (*Processor, error) {
@@ -31,9 +32,16 @@ func NewProcessor(kubeconfig string) (*Processor, error) {
 		return nil, err
 	}
 
+	info, err := clientset.ServerVersion()
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &Processor{
 		k8sClient:          clientset,
 		resourceNamePrefix: map[string]bool{},
+		serverGitVersion:   info.GitVersion,
 	}, nil
 }
 
@@ -149,9 +157,12 @@ func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList [
 	// set allowed host path
 	hostPathList := utils.MapToArray(hostPaths)
 
+	readOnly, _ := utils.CompareVersion(p.serverGitVersion, types.Version1_11)
+
 	for _, path := range hostPathList {
 		psp.Spec.AllowedHostPaths = append(psp.Spec.AllowedHostPaths, v1beta1.AllowedHostPath{
 			PathPrefix: path,
+			ReadOnly:   readOnly,
 		})
 	}
 
