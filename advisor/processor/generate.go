@@ -8,7 +8,7 @@ import (
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
 	"github.com/sysdiglabs/kube-psp-advisor/utils"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
