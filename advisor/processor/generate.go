@@ -52,6 +52,7 @@ func (p *Processor) SetNamespace(ns string) {
 
 // GeneratePSP generate Pod Security Policy
 func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList []types.PodSecuritySpec) *v1beta1.PodSecurityPolicy {
+	var ns string
 	// no PSP will be generated if no security spec is provided
 	if len(cssList) == 0 && len(pssList) == 0 {
 		return nil
@@ -79,7 +80,13 @@ func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList [
 
 	notAllowPrivilegeEscationCount := 0
 
-	psp.Name = fmt.Sprintf("%s-%s", "pod-security-policy", time.Now().Format("20060102150405"))
+	ns = p.namespace
+
+	if ns == "" {
+		ns = "all"
+	}
+
+	psp.Name = fmt.Sprintf("%s-%s-%s", "pod-security-policy", ns, time.Now().Format("20060102150405"))
 
 	for _, sc := range pssList {
 		psp.Spec.HostPID = psp.Spec.HostPID || sc.HostPID
