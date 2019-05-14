@@ -1,0 +1,49 @@
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: psp-restricted-role
+  namespace: restricted
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  resourceNames: ['psp-restricted']
+  verbs: ['use']
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: psp-privileged-role
+  namespace: privileged 
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  resourceNames: ['psp-privileged']
+  verbs: ['use']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: psp-restricted-rolebinding
+  namespace: restricted
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: psp-restricted-role
+subjects:
+- kind: ServiceAccount
+  name: restricted-sa
+  namespace: restricted
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: psp-privileged-rolebinding
+  namespace: privileged
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: psp-privileged-role
+subjects:
+- kind: ServiceAccount
+  name: privileged-sa
+  namespace: privileged

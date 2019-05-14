@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: privileged-busybox-0
+  namespace: privileged 
+spec:
+  serviceAccountName: privileged-sa
+  containers:
+  - name: my-busybox-container
+    image: busybox
+    args: ["sleep", "3000"]
+    securityContext:
+      privileged: false
+      runAsNonRoot: false 
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: true
+  hostPID: true
+  hostIPC: false
+  hostNetwork: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restricted-busybox-0
+  namespace: restricted
+spec:
+  serviceAccountName: restricted-sa
+  containers:
+  - name: my-busybox-container
+    image: busybox
+    args: ["sleep", "3000"]
+    securityContext:
+      privileged: false
+      runAsNonRoot: false 
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+  hostPID: false
+  hostIPC: false
+  hostNetwork: false

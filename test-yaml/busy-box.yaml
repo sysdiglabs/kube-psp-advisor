@@ -4,6 +4,7 @@ metadata:
   name: my-busybox
   namespace: psp-test 
 spec:
+  serviceAccountName: psp-test-sa
   containers:
   - name: my-busybox-container
     image: busybox

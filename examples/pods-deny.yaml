@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restricted-busybox-1
+  namespace: restricted
+spec:
+  serviceAccountName: restricted-sa
+  containers:
+  - name: busybox-container-1
+    image: busybox
+    args: ["sleep", "3000"]
+    securityContext:
+      privileged: true # try to launch a privileged pod in restricted namespace
+      runAsNonRoot: false 
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - SYS_CHROOT
+  hostPID: false
+  hostIPC: false
+  hostNetwork: false
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: privileged-busybox-1
+  namespace: privileged 
+spec:
+  serviceAccountName: restricted-sa # restricted-sa is trying to launch a privileged pod in privileged namespace
+  containers:
+  - name: busybox-container-1
+    image: busybox
+    args: ["sleep", "3000"]
+    securityContext:
+      privileged: true # try to launch a privileged pod in privileged namespace
+      runAsNonRoot: false 
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - SYS_CHROOT
+  hostPID: false
+  hostIPC: false
+  hostNetwork: false
