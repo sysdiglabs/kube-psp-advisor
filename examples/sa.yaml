@@ -1,0 +1,11 @@
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: restricted-sa
+  namespace: restricted
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: privileged-sa
+  namespace: privileged 

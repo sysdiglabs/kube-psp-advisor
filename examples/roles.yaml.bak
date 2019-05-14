@@ -1,8 +1,14 @@
 kind: ServiceAccount
 apiVersion: v1
 metadata:
-  name: psp-test-sa
-  namespace: psp-test
+  name: restricted-sa
+  namespace: restricted
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: privileged-sa
+  namespace: privileged 
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
