@@ -10,8 +10,8 @@ In order to enforce the pod security policies, the service accounts need to be a
 
 **Role** | **Rule Verb** | **Rule API Group** | **Rule Resources** | **Rule Resource Name** 
 --- | --- | --- | --- | ---
-privileged-role | use | policy | podsecuritypolicies | psp-privileged
-restricted-role | use | policy | podsecuritypolicies | psp-restricted
+psp-privileged-role | use | policy | podsecuritypolicies | psp-privileged
+psp-restricted-role | use | policy | podsecuritypolicies | psp-restricted
 
 ## Try out examples
 1. setup k8s cluster
