@@ -16,10 +16,10 @@ psp-restricted-role | use | policy | podsecuritypolicies | psp-restricted
 ## Try out examples
 1. setup k8s cluster
 2. run `make build` to build the `kube-psp-advisor` binary
-3. under the examples directory, run `./deploy.sh`
+3. run `make example` to setup the example environment and show the test scenarios
 
 ## Explanation of examples
 1. deploy `restrcited` and `privileged` namespaces with services account, roles, rolebindings and pods to k8s cluster
-2. `kube-psp-advisor` generates pod security policies seperately for namespaces `restricted` and `privileged` and then apply to cluster
+2. `kube-psp-advisor` generates pod security policies seperately for namespaces `restricted` and `privileged` based on the running pods, and then apply the pod security policies to cluster
 3. test pod security policies with pods that comply with pod security policies (pods-allows.yaml)
 4. test pod security policies with pods that violate pod security policies (pods-deny.yaml)
