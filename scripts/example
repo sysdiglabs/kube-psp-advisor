@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -eu
+
+kubectl delete -f examples/ns.yaml || true
+
+kubectl delete psp psp-privileged psp-restricted || true
+
+# create namespaces
+kubectl apply -f examples/ns.yaml || true
+
+# create service accounts
+kubectl apply -f examples/sa.yaml || true
+
+# create roles and rolebindings for service accounts to use pod security policies
+kubectl apply -f examples/roles.yaml || true
+
+# create pods
+kubectl apply -f examples/pods.yaml || true
+
+# generate psp and update the pod security policy name
+./kube-psp-advisor --namespace privileged | sed -e 's/pod-security.*/psp-privileged/g' | kubectl apply -f -
+
+./kube-psp-advisor --namespace restricted | sed -e 's/pod-security.*/psp-restricted/g' | kubectl apply -f -
+
+# test creating pods that pass the pod security policies
+kubectl apply -f examples/pods-allow.yaml || true
+
+kubectl get pods -n privileged
+
+kubectl get pods -n restricted
+
+# test creating pod that violate pod security policies
+kubectl apply -f examples/pods-deny.yaml || true
+
+kubectl get pods -n privileged
+
+kubectl get pods -n restricted
+
