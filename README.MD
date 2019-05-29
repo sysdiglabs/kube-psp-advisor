@@ -32,12 +32,11 @@ Some attributes(capabilities, host ports etc.) required gathering runtime inform
 - Least privilege (capabilities captured from runtime)
 - Accuracy (host ports listening on `0.0.0.0`)
 
-# Project status
-
-## High-level todo
+## High-level todo list
 
 - [x] Basic functionalities;
 - [ ] Create PSP's for common charts
+- [ ] Kubectl plugin
 
 ## Sample Pod Security Policy
 Command: `./kube-psp-advisor --namespace=psp-test`
