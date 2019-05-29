@@ -27,10 +27,16 @@
 - runAsUser
 - Volume
 
-## Limitation
+## Limitations
 Some attributes(capabilities, host ports etc.) required gathering runtime information in order to provide the followings:
 - Least privilege (capabilities captured from runtime)
 - Accuracy (host ports listening on `0.0.0.0`)
+
+## High-level todo list
+
+- [x] Basic functionalities;
+- [ ] Create PSP's for common charts
+- [ ] Kubectl plugin
 
 ## Sample Pod Security Policy
 Command: `./kube-psp-advisor --namespace=psp-test`
