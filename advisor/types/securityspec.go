@@ -63,7 +63,7 @@ type PodSecuritySpec struct {
 	Metadata       Metadata        `json:"metadata"`
 	Namespace      string          `json:"namespace"`
 	HostPID        bool            `json:"hostPID,omitempty"`
-	HostNetwork    bool            `json:"hostMetwork,omitempty"`
+	HostNetwork    bool            `json:"hostNetwork,omitempty"`
 	HostIPC        bool            `json:"hostIPC,omitempty"`
 	VolumeTypes    []string        `json:"volumeTypes,omitempty"`
 	MountHostPaths map[string]bool `json:"mountedHostPath,omitempty"`
