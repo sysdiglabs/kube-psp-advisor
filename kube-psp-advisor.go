@@ -45,5 +45,9 @@ func main() {
 		return
 	}
 
-	advisor.PrintPodSecurityPolicy()
+	err = advisor.PrintPodSecurityPolicy()
+
+	if err != nil {
+		panic(err)
+	}
 }

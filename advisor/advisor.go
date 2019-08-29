@@ -61,8 +61,10 @@ func (advisor *Advisor) PrintReport() {
 	fmt.Println(string(jsonOutput))
 }
 
-func (advisor *Advisor) PrintPodSecurityPolicy() {
+func (advisor *Advisor) PrintPodSecurityPolicy() error {
 	e := k8sJSON.NewYAMLSerializer(k8sJSON.DefaultMetaFactory, nil, nil)
 
-	e.Encode(advisor.podSecurityPolicy, os.Stdout)
+	err := e.Encode(advisor.podSecurityPolicy, os.Stdout)
+
+	return err
 }
