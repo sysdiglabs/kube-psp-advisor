@@ -2,7 +2,8 @@
 
 set -eux
 
-dep ensure
+export GO111MODULE=on
+#dep ensure
 $GOPATH/bin/goimports -w $(find . -type f -name '*.go' -not -path "./vendor/*") || true
 
 env GOOS=$(uname -s | tr '[:upper:]' '[:lower:]') GOARCH=amd64 go build -a
