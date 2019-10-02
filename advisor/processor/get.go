@@ -36,6 +36,29 @@ func getSecuritySpec(metadata types.Metadata, namespace string, spec v1.PodSpec,
 		MountHostPaths: getVolumeHostPaths(spec),
 	}
 
+	for _, container := range spec.InitContainers {
+		addCapList, dropCapList := getCapabilities(container.SecurityContext)
+		csc := types.ContainerSecuritySpec{
+			Metadata:                 metadata,
+			ContainerName:            container.Name,
+			ImageName:                container.Image,
+			PodName:                  metadata.Name,
+			Namespace:                namespace,
+			HostName:                 spec.NodeName,
+			Capabilities:             getEffectiveCapablities(addCapList, dropCapList),
+			AddedCap:                 addCapList,
+			DroppedCap:               dropCapList,
+			ReadOnlyRootFS:           getReadOnlyRootFileSystem(container.SecurityContext),
+			RunAsNonRoot:             getRunAsNonRootUser(container.SecurityContext, spec.SecurityContext),
+			AllowPrivilegeEscalation: getAllowedPrivilegeEscalation(container.SecurityContext),
+			Privileged:               getPrivileged(container.SecurityContext),
+			RunAsGroup:               getRunAsGroup(container.SecurityContext, spec.SecurityContext),
+			RunAsUser:                getRunAsUser(container.SecurityContext, spec.SecurityContext),
+			HostPorts:                getHostPorts(container.Ports),
+		}
+		cssList = append(cssList, csc)
+	}
+
 	for _, container := range spec.Containers {
 		addCapList, dropCapList := getCapabilities(container.SecurityContext)
 		csc := types.ContainerSecuritySpec{
@@ -328,6 +351,16 @@ func getVolumeHostPaths(spec v1.PodSpec) map[string]bool {
 	containerMountMap := map[string]bool{}
 
 	for _, c := range spec.Containers {
+		for _, vm := range c.VolumeMounts {
+			if _, exists := containerMountMap[vm.Name]; !exists {
+				containerMountMap[vm.Name] = vm.ReadOnly
+			} else {
+				containerMountMap[vm.Name] = containerMountMap[vm.Name] && vm.ReadOnly
+			}
+		}
+	}
+
+	for _, c := range spec.InitContainers {
 		for _, vm := range c.VolumeMounts {
 			if _, exists := containerMountMap[vm.Name]; !exists {
 				containerMountMap[vm.Name] = vm.ReadOnly
