@@ -1,9 +1,14 @@
 # Kube PodSecurityPolicy Advisor
 
+kube-psp-advisor is a tool that makes it easier to create K8s Pod Security Policies (PSPs) from either a live K8s environment or from a single .yaml file containing a pod specification (Deployment, DaemonSet, Pod, etc).
+
+It has 2 subcommands, `kube-psp-advisor inspect` and `kube-psp-advisor convert`. `inspect` connects to a K8s API server, downloads all Pod-related objects in a given namespace, and generates a PSP based on the properties of those objects. `convert` works without connecting to an API Server, reading a single .yaml file containing a object with a pod spec and generating a PSP based on the file.
+
 ## Build and Run locally
 1. ```make build```
-2. ```./kube-psp-advisor``` to generate Pod Security Policy based on running cluster configuration
-3. ```./kube-psp-advisor --report``` to print the details reports (why this PSP is recommended for the cluster)
+2. ```./kube-psp-advisor inspect``` to generate Pod Security Policy based on running cluster configuration
+3. ```./kube-psp-advisor inspect --report``` to print the details reports (why this PSP is recommended for the cluster)
+4. ```./kube-psp-advisor convert --podFile <path> --pspFile <path>``` to generate a PSP from a single .yaml file.
 
 ## Build and Run as Container
 1. ```docker build -t <Image Name> -f container/Dockerfile .```
@@ -37,9 +42,9 @@ Some attributes(capabilities, host ports etc.) required gathering runtime inform
 - [x] Basic functionalities;
 - [ ] Create PSP's for common charts
 - [ ] Kubectl plugin
-
+`
 ## Sample Pod Security Policy
-Command: `./kube-psp-advisor --namespace=psp-test`
+Command: `./kube-psp-advisor inspect --namespace=psp-test`
 ```
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
@@ -73,8 +78,8 @@ spec:
   - secret
   ```
 
-## Sample Report 
-Command: `./kube-psp-advisor --namespace=psp-test --report | jq .podSecuritySpecs`
+## Sample Report
+Command: `./kube-psp-advisor inspect --namespace=psp-test --report | jq .podSecuritySpecs`
 ```
 {
   "hostIPC": [
