@@ -68,3 +68,7 @@ func (advisor *Advisor) PrintPodSecurityPolicy() error {
 
 	return err
 }
+
+func (advisor *Advisor) GetPodSecurityPolicy() *v1beta1.PodSecurityPolicy {
+	return advisor.podSecurityPolicy
+}
