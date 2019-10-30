@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"bytes"
 	"fmt"
 	"encoding/json"
 	
@@ -587,52 +588,55 @@ func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
 		return "", fmt.Errorf("Could not unmarshal json document: %v", err)
 	}
 
+	decoder := json.NewDecoder(bytes.NewReader(podObjJson))
+	decoder.DisallowUnknownFields()
+
 	switch kind := anyJson["kind"]; kind {
 	case "DaemonSet":
 		var ds appsv1.DaemonSet
-		if err = json.Unmarshal(podObjJson, &ds); err != nil {
+		if err = decoder.Decode(&ds); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as DaemonSet: %v", err)
 		}
 		return pg.fromDaemonSet(&ds)
 	case "Deployment":
 		var dep appsv1.Deployment
-		if err = json.Unmarshal(podObjJson, &dep); err != nil {
+		if err = decoder.Decode(&dep); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as Deployment: %v", err)
 		}
 		return pg.fromDeployment(&dep)
 	case "ReplicaSet":
 		var rs appsv1.ReplicaSet
-		if err = json.Unmarshal(podObjJson, &rs); err != nil {
+		if err = decoder.Decode(&rs); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as ReplicaSet: %v", err)
 		}
 		return pg.fromReplicaSet(&rs)
 	case "StatefulSet":
 		var ss appsv1.StatefulSet
-		if err = json.Unmarshal(podObjJson, &ss); err != nil {
+		if err = decoder.Decode(&ss); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as StatefulSet: %v", err)
 		}
 		return pg.fromStatefulSet(&ss)
 	case "ReplicationController":
 		var rc v1.ReplicationController
-		if err = json.Unmarshal(podObjJson, &rc); err != nil {
+		if err = decoder.Decode(&rc); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as ReplicationController: %v", err)
 		}
 		return pg.fromReplicationController(&rc)
 	case "CronJob":
 		var cj batchv1beta1.CronJob
-		if err = json.Unmarshal(podObjJson, &cj); err != nil {
+		if err = decoder.Decode(&cj); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as CronJob: %v", err)
 		}
 		return pg.fromCronJob(&cj)
 	case "Job":
 		var job batch.Job
-		if err = json.Unmarshal(podObjJson, &job); err != nil {
+		if err = decoder.Decode(&job); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as Job: %v", err)
 		}
 		return pg.fromJob(&job)
 	case "Pod":
 		var pod v1.Pod
-		if err = json.Unmarshal(podObjJson, &pod); err != nil {
+		if err = decoder.Decode(&pod); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as Pod: %v", err)
 		}
 		return pg.fromPod(&pod)
