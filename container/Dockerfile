@@ -13,3 +13,4 @@ ENV PATH /go/src/kube-psp-advisor:$PATH
 RUN apk del curl
 
 ENTRYPOINT ["kube-psp-advisor"]
+CMD ["inspect"]

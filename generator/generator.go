@@ -2,20 +2,20 @@ package generator
 
 import (
 	"bytes"
-	"fmt"
 	"encoding/json"
-	
+	"fmt"
+
 	"github.com/ghodss/yaml"
 
-	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"	
-	"github.com/sysdiglabs/kube-psp-advisor/utils"	
+	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
+	"github.com/sysdiglabs/kube-psp-advisor/utils"
 
-	v1 "k8s.io/api/core/v1"
 	appsv1 "k8s.io/api/apps/v1"
-	v1beta1 "k8s.io/api/policy/v1beta1"
 	batch "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
-	
+	v1 "k8s.io/api/core/v1"
+	v1beta1 "k8s.io/api/policy/v1beta1"
+
 	"reflect"
 	"strings"
 	"time"
@@ -23,7 +23,7 @@ import (
 
 const (
 	volumeTypeSecret = "secret"
-)	
+)
 
 type Generator struct {
 }
@@ -313,7 +313,7 @@ func (pg *Generator) GeneratePSP(
 	pssList []types.PodSecuritySpec,
 	namespace string,
 	serverGitVersion string) *v1beta1.PodSecurityPolicy {
-	
+
 	var ns string
 	// no PSP will be generated if no security spec is provided
 	if len(cssList) == 0 && len(pssList) == 0 {
@@ -507,11 +507,13 @@ func (pg *Generator) fromPodObj(metadata types.Metadata, spec v1.PodSpec) (strin
 	// 1.11, which allows enforcing ReadOnly.
 	psp := pg.GeneratePSP(cssList, pssList, "default", types.Version1_11)
 
-	pspJson, err := json.Marshal(psp); if err != nil {
+	pspJson, err := json.Marshal(psp)
+	if err != nil {
 		return "", fmt.Errorf("Could not marshal resulting PSP: %v", err)
 	}
 
-	pspYaml, err := yaml.JSONToYAML(pspJson); if err != nil {
+	pspYaml, err := yaml.JSONToYAML(pspJson)
+	if err != nil {
 		return "", fmt.Errorf("Could not convert resulting PSP to Json: %v", err)
 	}
 
@@ -576,7 +578,8 @@ func (pg *Generator) fromPod(pod *v1.Pod) (string, error) {
 
 func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
 
-	podObjJson, err := yaml.YAMLToJSON([]byte(podObjString)); if err != nil {
+	podObjJson, err := yaml.YAMLToJSON([]byte(podObjString))
+	if err != nil {
 		return "", fmt.Errorf("Could not parse pod Object: %v", err)
 	}
 
@@ -644,4 +647,3 @@ func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
 
 	return "", fmt.Errorf("K8s Object not one of supported types")
 }
-

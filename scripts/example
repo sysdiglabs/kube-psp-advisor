@@ -19,9 +19,9 @@ kubectl apply -f examples/roles.yaml || true
 kubectl apply -f examples/pods.yaml || true
 
 # generate psp and update the pod security policy name
-./kube-psp-advisor --namespace privileged | sed -e 's/pod-security.*/psp-privileged/g' | kubectl apply -f -
+./kube-psp-advisor inspect --namespace privileged | sed -e 's/pod-security.*/psp-privileged/g' | kubectl apply -f -
 
-./kube-psp-advisor --namespace restricted | sed -e 's/pod-security.*/psp-restricted/g' | kubectl apply -f -
+./kube-psp-advisor inspect --namespace restricted | sed -e 's/pod-security.*/psp-restricted/g' | kubectl apply -f -
 
 # test creating pods that pass the pod security policies
 kubectl apply -f examples/pods-allow.yaml || true

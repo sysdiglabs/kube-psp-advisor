@@ -3,9 +3,9 @@ package processor
 import (
 	"fmt"
 
-	"github.com/sysdiglabs/kube-psp-advisor/generator"
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/report"
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
+	"github.com/sysdiglabs/kube-psp-advisor/generator"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -25,7 +25,8 @@ type Processor struct {
 // NewProcessor returns a new processor
 func NewProcessor(kubeconfig string) (*Processor, error) {
 
-	gen, err := generator.NewGenerator(); if err != nil {
+	gen, err := generator.NewGenerator()
+	if err != nil {
 		return nil, fmt.Errorf("Could not create generator: %v", err)
 	}
 

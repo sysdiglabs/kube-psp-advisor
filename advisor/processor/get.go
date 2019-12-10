@@ -262,4 +262,3 @@ func (p *Processor) getServiceAccountMap() (map[string]v1.ServiceAccount, error)
 
 	return serviceAccountMap, nil
 }
-

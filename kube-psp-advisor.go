@@ -5,8 +5,9 @@ import (
 
 	"io/ioutil"
 
-	log "github.com/sirupsen/logrus"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 
 	"path/filepath"
 
@@ -114,7 +115,8 @@ func main() {
 		Short: "Inspect a live K8s Environment to generate a PodSecurityPolicy",
 		Long:  "Fetch all objects in the provided namespace to generate a Pod Security Policy",
 		Run: func(cmd *cobra.Command, args []string) {
-			err := inspectPsp(kubeconfig, withReport, namespace); if err != nil {
+			err := inspectPsp(kubeconfig, withReport, namespace)
+			if err != nil {
 				log.Fatalf("Could not run inspect command: %v", err)
 			}
 		},
@@ -133,9 +135,10 @@ func main() {
 				log.Fatalf("--pspFile must be provided")
 			}
 		},
-		
+
 		Run: func(cmd *cobra.Command, args []string) {
-			err := convertPsp(podObjFilename, pspFilename); if err != nil {
+			err := convertPsp(podObjFilename, pspFilename)
+			if err != nil {
 				log.Fatalf("Could not run convert command: %v", err)
 			}
 		},
