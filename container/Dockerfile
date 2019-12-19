@@ -1,16 +1,14 @@
-FROM golang:1.12.9-alpine3.10
-RUN apk add --no-cache git curl
+FROM golang:1.12.9-alpine3.10 AS builder
+RUN apk add --no-cache build-base git
 WORKDIR $GOPATH/src/kube-psp-advisor
-COPY . .
-# aws-iam-authenticator is optional, please install necessary k8s cloud authenticator accordingly
-# RUN curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.11.5/2018-12-06/bin/linux/amd64/aws-iam-authenticator
-# RUN chmod u+x aws-iam-authenticator
-# RUN mv aws-iam-authenticator /usr/local/bin
+COPY . $GOPATH/src/kube-psp-advisor
 ENV GO111MODULE=on
-RUN go get -d -v ./...
-RUN env GOOS=$(uname -s | tr '[:upper:]' '[:lower:]') GOARCH=amd64 CGO_ENABLED=0 go build -a 
-ENV PATH /go/src/kube-psp-advisor:$PATH
-RUN apk del curl
+RUN go get golang.org/x/tools/cmd/goimports
+RUN make build
+
+FROM alpine
+RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+COPY --from=builder /go/src/kube-psp-advisor/kube-psp-advisor /kube-psp-advisor
 
 ENTRYPOINT ["kube-psp-advisor"]
 CMD ["inspect"]
