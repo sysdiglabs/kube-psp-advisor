@@ -1,8 +1,6 @@
 package processor
 
 import (
-	"strings"
-
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
 
 	"k8s.io/api/core/v1"
@@ -32,7 +30,6 @@ func (p *Processor) getSecuritySpecFromDaemonSets() ([]types.ContainerSecuritySp
 	}
 
 	for _, ds := range daemonSetList.Items {
-		p.resourceNamePrefix[ds.Name] = true
 		sa := p.serviceAccountMap[ds.Spec.Template.Spec.ServiceAccountName]
 		cspList2, podSecurityPosture := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: ds.Name,
@@ -58,11 +55,10 @@ func (p *Processor) getSecuritySpecFromReplicaSets() ([]types.ContainerSecurityS
 	}
 
 	for _, rs := range replicaSetList.Items {
-		if p.hasSpecRecorded(rs.Name) {
+		if len(rs.OwnerReferences) > 0 {
 			continue
 		}
 
-		p.resourceNamePrefix[rs.Name] = true
 		sa := p.serviceAccountMap[rs.Spec.Template.Spec.ServiceAccountName]
 		cspList2, psc := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: rs.Name,
@@ -88,7 +84,6 @@ func (p *Processor) getSecuritySpecFromStatefulSets() ([]types.ContainerSecurity
 	}
 
 	for _, sts := range statefulSetList.Items {
-		p.resourceNamePrefix[sts.Name] = true
 		sa := p.serviceAccountMap[sts.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: sts.Name,
@@ -114,7 +109,6 @@ func (p *Processor) getSecuritySpecFromReplicationController() ([]types.Containe
 	}
 
 	for _, rc := range replicationControllerList.Items {
-		p.resourceNamePrefix[rc.Name] = true
 		sa := p.serviceAccountMap[rc.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: rc.Name,
@@ -140,7 +134,6 @@ func (p *Processor) getSecuritySpecFromCronJobs() ([]types.ContainerSecuritySpec
 	}
 
 	for _, cronJob := range jobList.Items {
-		p.resourceNamePrefix[cronJob.Name] = true
 		sa := p.serviceAccountMap[cronJob.Spec.JobTemplate.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: cronJob.Name,
@@ -166,11 +159,9 @@ func (p *Processor) getSecuritySpecFromJobs() ([]types.ContainerSecuritySpec, []
 	}
 
 	for _, job := range jobList.Items {
-		if p.hasSpecRecorded(job.Name) {
+		if len(job.OwnerReferences) > 0 {
 			continue
 		}
-
-		p.resourceNamePrefix[job.Name] = true
 		sa := p.serviceAccountMap[job.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: job.Name,
@@ -196,7 +187,6 @@ func (p *Processor) getSecuritySpecFromDeployments() ([]types.ContainerSecurityS
 	}
 
 	for _, deploy := range deployments.Items {
-		p.resourceNamePrefix[deploy.Name] = true
 		sa := p.serviceAccountMap[deploy.Spec.Template.Spec.ServiceAccountName]
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: deploy.Name,
@@ -208,15 +198,6 @@ func (p *Processor) getSecuritySpecFromDeployments() ([]types.ContainerSecurityS
 	}
 
 	return cssList, pssList, nil
-}
-
-func (p *Processor) hasSpecRecorded(resourceName string) bool {
-	for prefix := range p.resourceNamePrefix {
-		if strings.HasPrefix(resourceName, prefix) {
-			return true
-		}
-	}
-	return false
 }
 
 func (p *Processor) getSecuritySpecFromPods() ([]types.ContainerSecuritySpec, []types.PodSecuritySpec, error) {
@@ -231,7 +212,7 @@ func (p *Processor) getSecuritySpecFromPods() ([]types.ContainerSecuritySpec, []
 	}
 
 	for _, pod := range pods.Items {
-		if p.hasSpecRecorded(pod.Name) {
+		if len(pod.OwnerReferences) > 0 {
 			continue
 		}
 
