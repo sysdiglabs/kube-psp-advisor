@@ -14,12 +14,11 @@ import (
 )
 
 type Processor struct {
-	k8sClient          *kubernetes.Clientset
-	resourceNamePrefix map[string]bool
-	namespace          string
-	serviceAccountMap  map[string]v1.ServiceAccount
-	serverGitVersion   string
-	gen                *generator.Generator
+	k8sClient         *kubernetes.Clientset
+	namespace         string
+	serviceAccountMap map[string]v1.ServiceAccount
+	serverGitVersion  string
+	gen               *generator.Generator
 }
 
 // NewProcessor returns a new processor
@@ -46,10 +45,9 @@ func NewProcessor(kubeconfig string) (*Processor, error) {
 	}
 
 	return &Processor{
-		k8sClient:          clientset,
-		resourceNamePrefix: map[string]bool{},
-		serverGitVersion:   info.GitVersion,
-		gen:                gen,
+		k8sClient:        clientset,
+		serverGitVersion: info.GitVersion,
+		gen:              gen,
 	}, nil
 }
 
