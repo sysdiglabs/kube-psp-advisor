@@ -41,7 +41,7 @@ func getVolumeTypes(spec v1.PodSpec, sa *v1.ServiceAccount) (volumeTypes []strin
 		}
 	}
 
-	// If don't opt out of automounting API credentils for a service account
+	// If don't opt out of automounting API credentials for a service account
 	// or a particular pod, "secret" needs to be into PSP allowed volume types.
 	if sa == nil || mountServiceAccountToken(spec, *sa) {
 		volumeTypeMap[volumeTypeSecret] = true
@@ -257,6 +257,7 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 		HostIPC:        spec.HostIPC,
 		VolumeTypes:    getVolumeTypes(spec, sa),
 		MountHostPaths: getVolumeHostPaths(spec),
+		ServiceAccount: getServiceAccountName(spec),
 	}
 
 	for _, container := range spec.InitContainers {
@@ -278,6 +279,7 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 			RunAsGroup:               getRunAsGroup(container.SecurityContext, spec.SecurityContext),
 			RunAsUser:                getRunAsUser(container.SecurityContext, spec.SecurityContext),
 			HostPorts:                getHostPorts(container.Ports),
+			ServiceAccount:           getServiceAccountName(spec),
 		}
 		cssList = append(cssList, csc)
 	}
@@ -301,6 +303,7 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 			RunAsGroup:               getRunAsGroup(container.SecurityContext, spec.SecurityContext),
 			RunAsUser:                getRunAsUser(container.SecurityContext, spec.SecurityContext),
 			HostPorts:                getHostPorts(container.Ports),
+			ServiceAccount:           getServiceAccountName(spec),
 		}
 		cssList = append(cssList, csc)
 	}
@@ -389,7 +392,8 @@ func (pg *Generator) GeneratePSP(
 			runAsNonRootCount++
 		}
 
-		if sc.RunAsUser != nil {
+		// runAsUser is set and not to root
+		if sc.RunAsUser != nil && *sc.RunAsUser != 0 {
 			runAsUser[*sc.RunAsUser] = true
 			runAsUserCount++
 		}
@@ -399,7 +403,7 @@ func (pg *Generator) GeneratePSP(
 		}
 
 		// set host ports
-		// TODO: need to integrate with listening port during the runtime, might cause false positive.
+		//TODO: need to integrate with listening port during the runtime, might cause false positive.
 		//for _, port := range sc.HostPorts {
 		//	psp.Spec.HostPorts = append(psp.Spec.HostPorts, v1beta1.HostPortRange{Min: port, Max: port})
 		//}
@@ -419,12 +423,10 @@ func (pg *Generator) GeneratePSP(
 	if runAsUserCount == len(cssList) {
 		psp.Spec.RunAsUser.Rule = v1beta1.RunAsUserStrategyMustRunAs
 		for uid := range runAsUser {
-			if psp.Spec.RunAsUser.Rule == v1beta1.RunAsUserStrategyMustRunAsNonRoot && uid != 0 {
-				psp.Spec.RunAsUser.Ranges = append(psp.Spec.RunAsUser.Ranges, v1beta1.IDRange{
-					Min: uid,
-					Max: uid,
-				})
-			}
+			psp.Spec.RunAsUser.Ranges = append(psp.Spec.RunAsUser.Ranges, v1beta1.IDRange{
+				Min: uid,
+				Max: uid,
+			})
 		}
 	}
 
@@ -646,4 +648,12 @@ func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
 	}
 
 	return "", fmt.Errorf("K8s Object not one of supported types")
+}
+
+func getServiceAccountName(spec v1.PodSpec) string {
+	if spec.ServiceAccountName == "" {
+		return "default"
+	}
+
+	return spec.ServiceAccountName
 }
