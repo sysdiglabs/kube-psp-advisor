@@ -52,18 +52,22 @@ func NewSASecuritySpec(ns, sa string) *SASecuritySpec {
 	}
 }
 
+// IsDefaultServiceAccount returns whether the service account is default
 func (s *SASecuritySpec) IsDefaultServiceAccount() bool {
 	return s.ServiceAccount == "default"
 }
 
+// AddContainerSecuritySpec adds container security spec object to the associated service account
 func (s *SASecuritySpec) AddContainerSecuritySpec(css ContainerSecuritySpec) {
 	s.ContainerSecuritySpecList = append(s.ContainerSecuritySpecList, css)
 }
 
+// AddPodSecuritySpec adds pod security spec object to the associated service account
 func (s *SASecuritySpec) AddPodSecuritySpec(pss PodSecuritySpec) {
 	s.PodSecuritySpecList = append(s.PodSecuritySpecList, pss)
 }
 
+// GeneratePSPName generates psp name
 func (s *SASecuritySpec) GeneratePSPName() string {
 	if s.PSPName == "" {
 		s.PSPName = fmt.Sprintf("psp-for-%s-%s", s.Namespace, s.ServiceAccount)
@@ -72,6 +76,7 @@ func (s *SASecuritySpec) GeneratePSPName() string {
 	return s.PSPName
 }
 
+// GenerateComment generate comments for the psp grants (no psp will be created for default service account)
 func (s *SASecuritySpec) GenerateComment() string {
 	decision := "will be"
 
@@ -101,6 +106,7 @@ func (s *SASecuritySpec) GetWorkloadImages() []string {
 	return workLoadImageList
 }
 
+// GenerateRole creates a role object contains the privilege to use the psp
 func (s *SASecuritySpec) GenerateRole() *v1rbac.Role {
 	roleName := fmt.Sprintf("use-psp-by-%s:%s", s.Namespace, s.ServiceAccount)
 
@@ -124,6 +130,7 @@ func (s *SASecuritySpec) GenerateRole() *v1rbac.Role {
 	}
 }
 
+// GenerateRoleBinding creates a rolebinding for the service account to use the psp
 func (s *SASecuritySpec) GenerateRoleBinding() *v1rbac.RoleBinding {
 	roleBindingName := fmt.Sprintf("use-psp-by-%s:%s-binding", s.Namespace, s.ServiceAccount)
 	roleName := fmt.Sprintf("use-psp-by-%s:%s", s.Namespace, s.ServiceAccount)
