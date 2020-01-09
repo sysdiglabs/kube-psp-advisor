@@ -1,10 +1,12 @@
 package processor
 
 import (
+	"fmt"
+
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
 
 	"k8s.io/api/core/v1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -23,14 +25,15 @@ func (p *Processor) getSecuritySpecFromDaemonSets() ([]types.ContainerSecuritySp
 	cspList := []types.ContainerSecuritySpec{}
 	pspList := []types.PodSecuritySpec{}
 
-	daemonSetList, err := clientset.AppsV1().DaemonSets(p.namespace).List(v12.ListOptions{})
+	daemonSetList, err := clientset.AppsV1().DaemonSets(p.namespace).List(v1meta.ListOptions{})
 
 	if err != nil {
 		return cspList, pspList, err
 	}
 
 	for _, ds := range daemonSetList.Items {
-		sa := p.serviceAccountMap[ds.Spec.Template.Spec.ServiceAccountName]
+		sa := p.GetServiceAccount(ds.Namespace, ds.Spec.Template.Spec.ServiceAccountName)
+
 		cspList2, podSecurityPosture := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: ds.Name,
 			Kind: DaemonSet,
@@ -48,7 +51,7 @@ func (p *Processor) getSecuritySpecFromReplicaSets() ([]types.ContainerSecurityS
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	replicaSetList, err := clientset.AppsV1().ReplicaSets(p.namespace).List(v12.ListOptions{})
+	replicaSetList, err := clientset.AppsV1().ReplicaSets(p.namespace).List(v1meta.ListOptions{})
 
 	if err != nil {
 		return cssList, pssList, err
@@ -59,7 +62,7 @@ func (p *Processor) getSecuritySpecFromReplicaSets() ([]types.ContainerSecurityS
 			continue
 		}
 
-		sa := p.serviceAccountMap[rs.Spec.Template.Spec.ServiceAccountName]
+		sa := p.GetServiceAccount(rs.Namespace, rs.Spec.Template.Spec.ServiceAccountName)
 		cspList2, psc := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: rs.Name,
 			Kind: ReplicaSet,
@@ -77,14 +80,14 @@ func (p *Processor) getSecuritySpecFromStatefulSets() ([]types.ContainerSecurity
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	statefulSetList, err := clientset.AppsV1().StatefulSets(p.namespace).List(v12.ListOptions{})
+	statefulSetList, err := clientset.AppsV1().StatefulSets(p.namespace).List(v1meta.ListOptions{})
 
 	if err != nil {
 		return cssList, pssList, err
 	}
 
 	for _, sts := range statefulSetList.Items {
-		sa := p.serviceAccountMap[sts.Spec.Template.Spec.ServiceAccountName]
+		sa := p.GetServiceAccount(sts.Namespace, sts.Spec.Template.Spec.ServiceAccountName)
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: sts.Name,
 			Kind: StatefulSet,
@@ -102,14 +105,14 @@ func (p *Processor) getSecuritySpecFromReplicationController() ([]types.Containe
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	replicationControllerList, err := clientset.CoreV1().ReplicationControllers(p.namespace).List(v12.ListOptions{})
+	replicationControllerList, err := clientset.CoreV1().ReplicationControllers(p.namespace).List(v1meta.ListOptions{})
 
 	if err != nil {
 		return cssList, pssList, err
 	}
 
 	for _, rc := range replicationControllerList.Items {
-		sa := p.serviceAccountMap[rc.Spec.Template.Spec.ServiceAccountName]
+		sa := p.GetServiceAccount(rc.Namespace, rc.Spec.Template.Spec.ServiceAccountName)
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: rc.Name,
 			Kind: ReplicationController,
@@ -127,14 +130,14 @@ func (p *Processor) getSecuritySpecFromCronJobs() ([]types.ContainerSecuritySpec
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	jobList, err := clientset.BatchV1beta1().CronJobs(p.namespace).List(v12.ListOptions{})
+	jobList, err := clientset.BatchV1beta1().CronJobs(p.namespace).List(v1meta.ListOptions{})
 
 	if err != nil {
 		return cssList, pssList, err
 	}
 
 	for _, cronJob := range jobList.Items {
-		sa := p.serviceAccountMap[cronJob.Spec.JobTemplate.Spec.Template.Spec.ServiceAccountName]
+		sa := p.GetServiceAccount(cronJob.Namespace, cronJob.Spec.JobTemplate.Spec.Template.Spec.ServiceAccountName)
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: cronJob.Name,
 			Kind: CronJob,
@@ -152,7 +155,7 @@ func (p *Processor) getSecuritySpecFromJobs() ([]types.ContainerSecuritySpec, []
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	jobList, err := clientset.BatchV1().Jobs(p.namespace).List(v12.ListOptions{})
+	jobList, err := clientset.BatchV1().Jobs(p.namespace).List(v1meta.ListOptions{})
 
 	if err != nil {
 		return cssList, pssList, err
@@ -162,7 +165,7 @@ func (p *Processor) getSecuritySpecFromJobs() ([]types.ContainerSecuritySpec, []
 		if len(job.OwnerReferences) > 0 {
 			continue
 		}
-		sa := p.serviceAccountMap[job.Spec.Template.Spec.ServiceAccountName]
+		sa := p.GetServiceAccount(job.Namespace, job.Spec.Template.Spec.ServiceAccountName)
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: job.Name,
 			Kind: Job,
@@ -180,14 +183,14 @@ func (p *Processor) getSecuritySpecFromDeployments() ([]types.ContainerSecurityS
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	deployments, err := clientset.AppsV1().Deployments(p.namespace).List(v12.ListOptions{})
+	deployments, err := clientset.AppsV1().Deployments(p.namespace).List(v1meta.ListOptions{})
 
 	if err != nil {
 		return cssList, pssList, err
 	}
 
 	for _, deploy := range deployments.Items {
-		sa := p.serviceAccountMap[deploy.Spec.Template.Spec.ServiceAccountName]
+		sa := p.GetServiceAccount(deploy.Namespace, deploy.Spec.Template.Spec.ServiceAccountName)
 		cspList2, pss := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: deploy.Name,
 			Kind: Deployment,
@@ -205,7 +208,7 @@ func (p *Processor) getSecuritySpecFromPods() ([]types.ContainerSecuritySpec, []
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	pods, err := clientset.CoreV1().Pods(p.namespace).List(v12.ListOptions{})
+	pods, err := clientset.CoreV1().Pods(p.namespace).List(v1meta.ListOptions{})
 
 	if err != nil {
 		return cssList, pssList, err
@@ -216,7 +219,7 @@ func (p *Processor) getSecuritySpecFromPods() ([]types.ContainerSecuritySpec, []
 			continue
 		}
 
-		sa := p.serviceAccountMap[pod.Spec.ServiceAccountName]
+		sa := p.GetServiceAccount(pod.Namespace, pod.Spec.ServiceAccountName)
 		cspList2, podSecurityPosture := p.gen.GetSecuritySpecFromPodSpec(types.Metadata{
 			Name: pod.Name,
 			Kind: Pod,
@@ -232,14 +235,32 @@ func (p *Processor) getSecuritySpecFromPods() ([]types.ContainerSecuritySpec, []
 func (p *Processor) getServiceAccountMap() (map[string]v1.ServiceAccount, error) {
 	serviceAccountMap := map[string]v1.ServiceAccount{}
 
-	serviceAccounts, err := p.k8sClient.CoreV1().ServiceAccounts(p.namespace).List(v12.ListOptions{})
+	serviceAccounts, err := p.k8sClient.CoreV1().ServiceAccounts(p.namespace).List(v1meta.ListOptions{})
 	if err != nil {
 		return serviceAccountMap, err
 	}
 
+	// service account is an namespaced object
 	for _, sa := range serviceAccounts.Items {
-		serviceAccountMap[sa.Name] = sa
+		key := fmt.Sprintf("%s:%s", sa.Namespace, sa.Name)
+		serviceAccountMap[key] = sa
 	}
 
 	return serviceAccountMap, nil
+}
+
+func (p *Processor) GetServiceAccount(ns, saName string) v1.ServiceAccount {
+	if saName == "" {
+		saName = "default"
+	}
+
+	key := fmt.Sprintf("%s:%s", ns, saName)
+
+	sa, exists := p.serviceAccountMap[key]
+
+	if !exists {
+		return v1.ServiceAccount{}
+	}
+
+	return sa
 }

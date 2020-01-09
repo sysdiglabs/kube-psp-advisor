@@ -41,7 +41,7 @@ func getVolumeTypes(spec v1.PodSpec, sa *v1.ServiceAccount) (volumeTypes []strin
 		}
 	}
 
-	// If don't opt out of automounting API credentils for a service account
+	// If don't opt out of automounting API credentials for a service account
 	// or a particular pod, "secret" needs to be into PSP allowed volume types.
 	if sa == nil || mountServiceAccountToken(spec, *sa) {
 		volumeTypeMap[volumeTypeSecret] = true
@@ -257,6 +257,7 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 		HostIPC:        spec.HostIPC,
 		VolumeTypes:    getVolumeTypes(spec, sa),
 		MountHostPaths: getVolumeHostPaths(spec),
+		ServiceAccount: getServiceAccountName(spec),
 	}
 
 	for _, container := range spec.InitContainers {
@@ -278,6 +279,7 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 			RunAsGroup:               getRunAsGroup(container.SecurityContext, spec.SecurityContext),
 			RunAsUser:                getRunAsUser(container.SecurityContext, spec.SecurityContext),
 			HostPorts:                getHostPorts(container.Ports),
+			ServiceAccount:           getServiceAccountName(spec),
 		}
 		cssList = append(cssList, csc)
 	}
@@ -301,19 +303,25 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 			RunAsGroup:               getRunAsGroup(container.SecurityContext, spec.SecurityContext),
 			RunAsUser:                getRunAsUser(container.SecurityContext, spec.SecurityContext),
 			HostPorts:                getHostPorts(container.Ports),
+			ServiceAccount:           getServiceAccountName(spec),
 		}
 		cssList = append(cssList, csc)
 	}
 	return cssList, podSecuritySpec
 }
 
+func (pg *Generator) GeneratePSP(cssList []types.ContainerSecuritySpec,
+	pssList []types.PodSecuritySpec,
+	namespace, serverGitVersion string) *v1beta1.PodSecurityPolicy {
+
+	return pg.GeneratePSPWithName(cssList, pssList, namespace, serverGitVersion, "")
+}
+
 // GeneratePSP generate Pod Security Policy
-func (pg *Generator) GeneratePSP(
+func (pg *Generator) GeneratePSPWithName(
 	cssList []types.ContainerSecuritySpec,
 	pssList []types.PodSecuritySpec,
-	namespace string,
-	serverGitVersion string) *v1beta1.PodSecurityPolicy {
-
+	namespace, serverGitVersion, pspName string) *v1beta1.PodSecurityPolicy {
 	var ns string
 	// no PSP will be generated if no security spec is provided
 	if len(cssList) == 0 && len(pssList) == 0 {
@@ -348,7 +356,11 @@ func (pg *Generator) GeneratePSP(
 		ns = "all"
 	}
 
-	psp.Name = fmt.Sprintf("%s-%s-%s", "pod-security-policy", ns, time.Now().Format("20060102150405"))
+	if pspName == "" {
+		psp.Name = fmt.Sprintf("%s-%s-%s", "pod-security-policy", ns, time.Now().Format("20060102150405"))
+	} else {
+		psp.Name = pspName
+	}
 
 	for _, sc := range pssList {
 		psp.Spec.HostPID = psp.Spec.HostPID || sc.HostPID
@@ -389,7 +401,8 @@ func (pg *Generator) GeneratePSP(
 			runAsNonRootCount++
 		}
 
-		if sc.RunAsUser != nil {
+		// runAsUser is set and not to root
+		if sc.RunAsUser != nil && *sc.RunAsUser != 0 {
 			runAsUser[*sc.RunAsUser] = true
 			runAsUserCount++
 		}
@@ -399,7 +412,7 @@ func (pg *Generator) GeneratePSP(
 		}
 
 		// set host ports
-		// TODO: need to integrate with listening port during the runtime, might cause false positive.
+		//TODO: need to integrate with listening port during the runtime, might cause false positive.
 		//for _, port := range sc.HostPorts {
 		//	psp.Spec.HostPorts = append(psp.Spec.HostPorts, v1beta1.HostPortRange{Min: port, Max: port})
 		//}
@@ -419,12 +432,10 @@ func (pg *Generator) GeneratePSP(
 	if runAsUserCount == len(cssList) {
 		psp.Spec.RunAsUser.Rule = v1beta1.RunAsUserStrategyMustRunAs
 		for uid := range runAsUser {
-			if psp.Spec.RunAsUser.Rule == v1beta1.RunAsUserStrategyMustRunAsNonRoot && uid != 0 {
-				psp.Spec.RunAsUser.Ranges = append(psp.Spec.RunAsUser.Ranges, v1beta1.IDRange{
-					Min: uid,
-					Max: uid,
-				})
-			}
+			psp.Spec.RunAsUser.Ranges = append(psp.Spec.RunAsUser.Ranges, v1beta1.IDRange{
+				Min: uid,
+				Max: uid,
+			})
 		}
 	}
 
@@ -646,4 +657,12 @@ func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
 	}
 
 	return "", fmt.Errorf("K8s Object not one of supported types")
+}
+
+func getServiceAccountName(spec v1.PodSpec) string {
+	if spec.ServiceAccountName == "" {
+		return "default"
+	}
+
+	return spec.ServiceAccountName
 }

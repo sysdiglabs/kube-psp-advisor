@@ -20,7 +20,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
-func inspectPsp(kubeconfig string, withReport bool, namespace string) error {
+func inspectPsp(kubeconfig string, namespace string, withReport, withGrant bool) error {
 	advisor, err := advisor.NewAdvisor(kubeconfig)
 
 	if err != nil {
@@ -38,6 +38,9 @@ func inspectPsp(kubeconfig string, withReport bool, namespace string) error {
 		return nil
 	}
 
+	if withGrant {
+		return advisor.PrintPodSecurityPolicyWithGrants()
+	}
 	err = advisor.PrintPodSecurityPolicy()
 
 	if err != nil {
@@ -85,6 +88,7 @@ func main() {
 
 	var kubeconfig string
 	var withReport bool
+	var withGrant bool
 	var namespace string
 	var podObjFilename string
 	var pspFilename string
@@ -115,7 +119,7 @@ func main() {
 		Short: "Inspect a live K8s Environment to generate a PodSecurityPolicy",
 		Long:  "Fetch all objects in the provided namespace to generate a Pod Security Policy",
 		Run: func(cmd *cobra.Command, args []string) {
-			err := inspectPsp(kubeconfig, withReport, namespace)
+			err := inspectPsp(kubeconfig, namespace, withReport, withGrant)
 			if err != nil {
 				log.Fatalf("Could not run inspect command: %v", err)
 			}
@@ -150,6 +154,7 @@ func main() {
 		inspectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	}
 	inspectCmd.Flags().BoolVar(&withReport, "report", false, "(optional) return with detail report")
+	inspectCmd.Flags().BoolVar(&withGrant, "grant", false, "(optional) return with pod security policies, roles and rolebindings")
 	inspectCmd.Flags().StringVar(&namespace, "namespace", "", "(optional) namespace")
 
 	convertCmd.Flags().StringVar(&podObjFilename, "podFile", "", "Path to a yaml file containing an object with a pod Spec")

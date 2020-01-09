@@ -57,6 +57,7 @@ type ContainerSecuritySpec struct {
 	RunAsUser                *int64   `json:"runAsUser,omitempty"`
 	RunAsGroup               *int64   `json:"runAsGroup,omitempty"`
 	HostPorts                []int32  `json:"hostPorts,omitempty"`
+	ServiceAccount           string   `json:"serviceAccount,omitempty"`
 }
 
 type PodSecuritySpec struct {
@@ -67,6 +68,7 @@ type PodSecuritySpec struct {
 	HostIPC        bool            `json:"hostIPC,omitempty"`
 	VolumeTypes    []string        `json:"volumeTypes,omitempty"`
 	MountHostPaths map[string]bool `json:"mountedHostPath,omitempty"`
+	ServiceAccount string          `json:"serviceAccount,omitempty"`
 }
 
 type Metadata struct {

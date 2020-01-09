@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
+
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/processor"
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/report"
 
@@ -19,6 +21,8 @@ type Advisor struct {
 	k8sClient         *kubernetes.Clientset
 	processor         *processor.Processor
 	report            *report.Report
+	grants            []types.PSPGrant
+	grantWarnings     string
 }
 
 // Create an podSecurityPolicy advisor instance
@@ -33,6 +37,7 @@ func NewAdvisor(kubeconfig string) (*Advisor, error) {
 		podSecurityPolicy: nil,
 		processor:         p,
 		report:            nil,
+		grants:            []types.PSPGrant{},
 	}, nil
 }
 
@@ -48,6 +53,8 @@ func (advisor *Advisor) Process(namespace string) error {
 	advisor.podSecurityPolicy = advisor.processor.GeneratePSP(cssList, pssList)
 
 	advisor.report = advisor.processor.GenerateReport(cssList, pssList)
+
+	advisor.grants, advisor.grantWarnings = advisor.processor.GeneratePSPGrant(cssList, pssList)
 
 	return nil
 }
@@ -71,4 +78,42 @@ func (advisor *Advisor) PrintPodSecurityPolicy() error {
 
 func (advisor *Advisor) GetPodSecurityPolicy() *v1beta1.PodSecurityPolicy {
 	return advisor.podSecurityPolicy
+}
+
+func (advisor *Advisor) PrintPodSecurityPolicyWithGrants() error {
+	var err error
+	e := k8sJSON.NewYAMLSerializer(k8sJSON.DefaultMetaFactory, nil, nil)
+
+	if advisor.grantWarnings != "" {
+		fmt.Println(advisor.grantWarnings)
+		printYamlSeparator()
+	}
+
+	for _, pspGrant := range advisor.grants {
+		fmt.Println(pspGrant.Comment)
+
+		if err = e.Encode(pspGrant.PodSecurityPolicy, os.Stdout); err != nil {
+			return err
+		}
+
+		printYamlSeparator()
+
+		if err = e.Encode(pspGrant.Role, os.Stdout); err != nil {
+			return err
+		}
+
+		printYamlSeparator()
+
+		if err = e.Encode(pspGrant.RoleBinding, os.Stdout); err != nil {
+			return err
+		}
+
+		printYamlSeparator()
+	}
+
+	return nil
+}
+
+func printYamlSeparator() {
+	fmt.Println("---")
 }
