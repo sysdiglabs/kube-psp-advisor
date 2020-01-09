@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -75,20 +76,29 @@ func (s *SASecuritySpec) GenerateComment() string {
 	decision := "will be"
 
 	if s.IsDefaultServiceAccount() {
-		decision = "will not be"
+		decision = "will NOT be"
 	}
 
-	return fmt.Sprintf("# Pod security policies %s created for service account: %s in namespace %s for images: %s", decision, s.ServiceAccount, s.Namespace, s.GetImages())
+	commentsForWorkloads := []string{}
+	comment := fmt.Sprintf("# Pod security policies %s created for service account '%s' in namespace '%s' with following workdloads:\n", decision, s.ServiceAccount, s.Namespace)
+	for _, wlImg := range s.GetWorkloadImages() {
+		commentsForWorkloads = append(commentsForWorkloads, fmt.Sprintf("#\t%s", wlImg))
+	}
+
+	comment += strings.Join(commentsForWorkloads, "\n")
+	return comment
 }
 
-func (s *SASecuritySpec) GetImages() []string {
-	imageList := []string{}
+// GetWorkloadImages returns a list of workload images in the format of "kind, Name, Image Name"
+func (s *SASecuritySpec) GetWorkloadImages() []string {
+	workLoadImageList := []string{}
 
 	for _, css := range s.ContainerSecuritySpecList {
-		imageList = append(imageList, css.ImageName)
+		workLoadImage := fmt.Sprintf("Kind: %s, Name: %s, Image: %s", css.Metadata.Kind, css.Metadata.Name, css.ImageName)
+		workLoadImageList = append(workLoadImageList, workLoadImage)
 	}
 
-	return imageList
+	return workLoadImageList
 }
 
 func (s *SASecuritySpec) GenerateRole() *v1rbac.Role {

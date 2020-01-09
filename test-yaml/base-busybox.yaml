@@ -4,6 +4,24 @@ metadata:
   name: psp-test
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-1
+  namespace: psp-test
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-2
+  namespace: psp-test
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-3
+  namespace: psp-test
+---
+apiVersion: v1
 kind: Pod 
 metadata:
   name: busy-pod
@@ -27,6 +45,7 @@ spec:
   hostPID: false 
   hostIPC: false
   hostNetwork: true
+  serviceAccount: sa-1
   volumes:
   - name: test-volume
     hostPath:
@@ -43,6 +62,7 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccount: sa-2
       restartPolicy: Never
       containers:
       - name: my-busybox
@@ -88,6 +108,7 @@ spec:
       labels:
         app: busy-deploy
     spec:
+      serviceAccount: sa-2
       containers:
       - name: my-busybox
         image: busybox 
@@ -179,6 +200,7 @@ spec:
       labels:
         app: busy-ds
     spec:
+      serviceAccount: sa-2
       containers:
       - name: my-busybox
         image: busybox 
@@ -245,6 +267,7 @@ spec:
       hostPID: true
       hostIPC: true
       hostNetwork: true
+      serviceAccount: sa-1
       volumes:
       - name: config-vol
         configMap:

@@ -1,0 +1,132 @@
+# Pod security policies will NOT be created for service account 'default' in namespace 'psp-test' with following workdloads:
+#	Kind: ReplicationController, Name: busy-rc, Image: busybox
+---
+# Pod security policies will be created for service account 'sa-1' in namespace 'psp-test' with following workdloads:
+#	Kind: ReplicaSet, Name: busy-rs, Image: busybox
+#	Kind: Pod, Name: busy-pod, Image: busybox
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  creationTimestamp: null
+  name: psp-for-psp-test-sa-1
+spec:
+  allowedCapabilities:
+  - SYS_ADMIN
+  allowedHostPaths:
+  - pathPrefix: /usr/bin
+    readOnly: true
+  fsGroup:
+    rule: RunAsAny
+  hostIPC: true
+  hostNetwork: true
+  hostPID: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - configMap
+  - secret
+  - hostPath
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: use-psp-by-psp-test:sa-1
+  namespace: psp-test
+rules:
+- apiGroups:
+  - policy
+  resourceNames:
+  - psp-for-psp-test-sa-1
+  resources:
+  - podsecuritypolicies
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  creationTimestamp: null
+  name: use-psp-by-psp-test:sa-1-binding
+  namespace: psp-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: use-psp-by-psp-test:sa-1
+subjects:
+- kind: ServiceAccount
+  name: sa-1
+  namespace: psp-test
+---
+# Pod security policies will be created for service account 'sa-2' in namespace 'psp-test' with following workdloads:
+#	Kind: DaemonSet, Name: busy-ds, Image: busybox
+#	Kind: Deployment, Name: busy-deploy, Image: busybox
+#	Kind: Job, Name: busy-job, Image: busybox
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  creationTimestamp: null
+  name: psp-for-psp-test-sa-2
+spec:
+  allowedCapabilities:
+  - SYS_ADMIN
+  - NET_ADMIN
+  allowedHostPaths:
+  - pathPrefix: /bin
+    readOnly: true
+  - pathPrefix: /tmp
+    readOnly: true
+  - pathPrefix: /usr/bin
+    readOnly: true
+  fsGroup:
+    rule: RunAsAny
+  hostIPC: true
+  hostPID: true
+  runAsUser:
+    ranges:
+    - max: 10001
+      min: 10001
+    rule: MustRunAs
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - hostPath
+  - secret
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: use-psp-by-psp-test:sa-2
+  namespace: psp-test
+rules:
+- apiGroups:
+  - policy
+  resourceNames:
+  - psp-for-psp-test-sa-2
+  resources:
+  - podsecuritypolicies
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  creationTimestamp: null
+  name: use-psp-by-psp-test:sa-2-binding
+  namespace: psp-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: use-psp-by-psp-test:sa-2
+subjects:
+- kind: ServiceAccount
+  name: sa-2
+  namespace: psp-test
+---
