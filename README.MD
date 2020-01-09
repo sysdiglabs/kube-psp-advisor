@@ -7,7 +7,9 @@ It has 2 subcommands, `kube-psp-advisor inspect` and `kube-psp-advisor convert`.
 ## Build and Run locally
 1. ```make build```
 2. ```./kube-psp-advisor inspect``` to generate Pod Security Policy based on running cluster configuration
-3. ```./kube-psp-advisor inspect --report``` to print the details reports (why this PSP is recommended for the cluster)
+   - 2.1 ```./kube-psp-advisor inspect --report``` to print the details reports (why this PSP is recommended for the cluster)
+   - 2.2 ```./kube-psp-advisor inspect --grant``` to print PSPs, roles and rolebindings for service accounts (refer to [psp-grant.yaml](./test-yaml/psp-grant.yaml))
+   - 2.3 ```./kube-psp-advisor inspect --namespace=<ns>``` to print report or PSP(s) within a given namespace (default to all) 
 4. ```./kube-psp-advisor convert --podFile <path> --pspFile <path>``` to generate a PSP from a single .yaml file.
 
 ## Build and Run as Container
