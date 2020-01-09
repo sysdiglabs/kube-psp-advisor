@@ -2,6 +2,7 @@ package processor
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/report"
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
@@ -55,10 +56,58 @@ func (p *Processor) SetNamespace(ns string) {
 	p.namespace = ns
 }
 
-// GeneratePSP generate Pod Security Policy
+// GeneratePSP generates Pod Security Policy
 func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList []types.PodSecuritySpec) *v1beta1.PodSecurityPolicy {
-
 	return p.gen.GeneratePSP(cssList, pssList, p.namespace, p.serverGitVersion)
+}
+
+// GeneratePSPGrant generates Pod Security Policies, Roles, RoleBindings for service accounts to use PSP
+func (p *Processor) GeneratePSPGrant(cssList []types.ContainerSecuritySpec, pssList []types.PodSecuritySpec) ([]types.PSPGrant, string) {
+	saSecuritySpecMap := map[string]*types.SASecuritySpec{}
+	pspGrantList := []types.PSPGrant{}
+	grantWarnings := ""
+
+	for _, css := range cssList {
+		key := fmt.Sprintf("%s:%s", css.Namespace, css.ServiceAccount)
+		if _, exists := saSecuritySpecMap[key]; !exists {
+			saSecuritySpecMap[key] = types.NewSASecuritySpec(css.Namespace, css.ServiceAccount)
+		}
+		saSecuritySpecMap[key].AddContainerSecuritySpec(css)
+	}
+
+	for _, pss := range pssList {
+		key := fmt.Sprintf("%s:%s", pss.Namespace, pss.ServiceAccount)
+		if _, exists := saSecuritySpecMap[key]; !exists {
+			saSecuritySpecMap[key] = types.NewSASecuritySpec(pss.Namespace, pss.ServiceAccount)
+		}
+		saSecuritySpecMap[key].AddPodSecuritySpec(pss)
+	}
+
+	saSecuritySpecList := types.SASecuritySpecList{}
+
+	// convert saSecuritySpecMap into list and then sort
+	for _, saSecuritySpec := range saSecuritySpecMap {
+		saSecuritySpecList = append(saSecuritySpecList, saSecuritySpec)
+	}
+
+	sort.Sort(saSecuritySpecList)
+
+	for _, s := range saSecuritySpecList {
+		if !s.IsDefaultServiceAccount() {
+			pspGrant := types.PSPGrant{
+				Comment:           s.GenerateComment(),
+				Role:              s.GenerateRole(),
+				RoleBinding:       s.GenerateRoleBinding(),
+				PodSecurityPolicy: p.gen.GeneratePSPWithName(s.ContainerSecuritySpecList, s.PodSecuritySpecList, s.Namespace, p.serverGitVersion, s.GeneratePSPName()),
+			}
+
+			pspGrantList = append(pspGrantList, pspGrant)
+		} else {
+			grantWarnings += s.GenerateComment()
+		}
+	}
+
+	return pspGrantList, grantWarnings
 }
 
 // GenerateReport generate a JSON report

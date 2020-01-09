@@ -310,13 +310,18 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 	return cssList, podSecuritySpec
 }
 
+func (pg *Generator) GeneratePSP(cssList []types.ContainerSecuritySpec,
+	pssList []types.PodSecuritySpec,
+	namespace, serverGitVersion string) *v1beta1.PodSecurityPolicy {
+
+	return pg.GeneratePSPWithName(cssList, pssList, namespace, serverGitVersion, "")
+}
+
 // GeneratePSP generate Pod Security Policy
-func (pg *Generator) GeneratePSP(
+func (pg *Generator) GeneratePSPWithName(
 	cssList []types.ContainerSecuritySpec,
 	pssList []types.PodSecuritySpec,
-	namespace string,
-	serverGitVersion string) *v1beta1.PodSecurityPolicy {
-
+	namespace, serverGitVersion, pspName string) *v1beta1.PodSecurityPolicy {
 	var ns string
 	// no PSP will be generated if no security spec is provided
 	if len(cssList) == 0 && len(pssList) == 0 {
@@ -351,7 +356,11 @@ func (pg *Generator) GeneratePSP(
 		ns = "all"
 	}
 
-	psp.Name = fmt.Sprintf("%s-%s-%s", "pod-security-policy", ns, time.Now().Format("20060102150405"))
+	if pspName == "" {
+		psp.Name = fmt.Sprintf("%s-%s-%s", "pod-security-policy", ns, time.Now().Format("20060102150405"))
+	} else {
+		psp.Name = pspName
+	}
 
 	for _, sc := range pssList {
 		psp.Spec.HostPID = psp.Spec.HostPID || sc.HostPID
