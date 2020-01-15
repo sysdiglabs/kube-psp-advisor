@@ -4,6 +4,8 @@ set -eux
 
 export GO111MODULE=on
 
+RELEASE=$(cat version)
+
 $GOPATH/bin/goimports -w $(find . -type f -name '*.go' -not -path "./vendor/*") || true
 
 # build release for MacOS
