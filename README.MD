@@ -4,6 +4,16 @@ kube-psp-advisor is a tool that makes it easier to create K8s Pod Security Polic
 
 It has 2 subcommands, `kube-psp-advisor inspect` and `kube-psp-advisor convert`. `inspect` connects to a K8s API server, downloads all Pod-related objects in a given namespace, and generates a PSP based on the properties of those objects. `convert` works without connecting to an API Server, reading a single .yaml file containing a object with a pod spec and generating a PSP based on the file.
 
+## Installation as a Krew Plugin
+
+Follow the [install instruction](https://github.com/kubernetes-sigs/krew#installation) to install `krew`. Then run the following command:
+
+```
+kubectl krew install who-can
+```
+
+The plugin will be available as `kubectl advise-psp`.
+
 ## Build and Run locally
 1. ```make build```
 2. ```./kube-psp-advisor inspect``` to generate Pod Security Policy based on running cluster configuration
