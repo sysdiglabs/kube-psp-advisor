@@ -9,7 +9,7 @@ It has 2 subcommands, `kube-psp-advisor inspect` and `kube-psp-advisor convert`.
 Follow the [install instruction](https://github.com/kubernetes-sigs/krew#installation) to install `krew`. Then run the following command:
 
 ```
-kubectl krew install who-can
+kubectl krew install advise-psp
 ```
 
 The plugin will be available as `kubectl advise-psp`.
