@@ -53,8 +53,8 @@ Some attributes(capabilities, host ports etc.) required gathering runtime inform
 
 - [x] Basic functionalities;
 - [ ] Create PSP's for common charts
-- [ ] Kubectl plugin
-`
+- [x] Kubectl plugin
+
 ## Sample Pod Security Policy
 Command: `./kube-psp-advisor inspect --namespace=psp-test`
 ```
