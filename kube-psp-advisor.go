@@ -153,9 +153,9 @@ func main() {
 	} else {
 		inspectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	}
-	inspectCmd.Flags().BoolVar(&withReport, "report", false, "(optional) return with detail report")
-	inspectCmd.Flags().BoolVar(&withGrant, "grant", false, "(optional) return with pod security policies, roles and rolebindings")
-	inspectCmd.Flags().StringVar(&namespace, "namespace", "", "(optional) namespace")
+	inspectCmd.Flags().BoolVarP(&withReport, "report", "r", false, "(optional) return with detail report")
+	inspectCmd.Flags().BoolVarP(&withGrant, "grant", "g", false, "(optional) return with pod security policies, roles and rolebindings")
+	inspectCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "(optional) namespace")
 
 	convertCmd.Flags().StringVar(&podObjFilename, "podFile", "", "Path to a yaml file containing an object with a pod Spec")
 	convertCmd.Flags().StringVar(&pspFilename, "pspFile", "", "Write the resulting PSP to this file")

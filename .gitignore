@@ -1,4 +1,7 @@
 vendor*
 .idea*
 kube-psp-advisor
+advise-psp
 psp.yaml
+*.tar.gz
+.DS_Store

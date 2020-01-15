@@ -13,6 +13,9 @@ example:
 build:
 	@echo "+ $@"
 	./scripts/build
+build-release:
+	@echo "+ $@"
+	./scripts/build-release
 build-image:
 	@echo "+ $@"
 	docker build -f container/Dockerfile -t ${IMG}:${VERSION} .
