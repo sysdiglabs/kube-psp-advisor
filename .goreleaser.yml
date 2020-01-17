@@ -1,0 +1,23 @@
+before:
+  hooks:
+  - go mod download
+builds:
+- id: kubectl-advise-psp
+  main: ./
+  binary: kubectl-advise-psp
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - linux
+  - darwin
+  goarch:
+  - amd64
+
+archives:
+- builds:
+  - kubectl-tree
+  name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+  wrap_in_directory: false
+  format: tar.gz
+  files:
+  - LICENSE
