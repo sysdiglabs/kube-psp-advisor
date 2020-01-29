@@ -42,6 +42,7 @@ The plugin will be available as `kubectl advise-psp`.
 - privileged
 - readOnlyRootFilesystem
 - runAsUser
+- runAsGroup
 - Volume
 
 ## Limitations
