@@ -340,11 +340,15 @@ func (pg *Generator) GeneratePSPWithName(
 
 	runAsUser := map[int64]bool{}
 
+	runAsGroup := map[int64]bool{}
+
 	volumeTypes := map[string]bool{}
 
 	hostPaths := map[string]bool{}
 
 	runAsUserCount := 0
+
+	runAsGroupCount := 0
 
 	runAsNonRootCount := 0
 
@@ -407,6 +411,12 @@ func (pg *Generator) GeneratePSPWithName(
 			runAsUserCount++
 		}
 
+		// runAsGroup is set
+		if sc.RunAsGroup != nil && *sc.RunAsGroup != 0 {
+			runAsGroup[*sc.RunAsGroup] = true
+			runAsGroupCount++
+		}
+
 		if sc.AllowPrivilegeEscalation != nil && !*sc.AllowPrivilegeEscalation {
 			notAllowPrivilegeEscationCount++
 		}
@@ -429,6 +439,19 @@ func (pg *Generator) GeneratePSPWithName(
 		psp.Spec.RunAsUser.Rule = v1beta1.RunAsUserStrategyMustRunAsNonRoot
 	}
 
+	// set runAsGroup strategy
+	if runAsGroupCount == len(cssList) {
+		psp.Spec.RunAsGroup = &v1beta1.RunAsGroupStrategyOptions{}
+		psp.Spec.RunAsGroup.Rule = v1beta1.RunAsGroupStrategyMustRunAs
+		for gid := range runAsGroup {
+			psp.Spec.RunAsGroup.Ranges = append(psp.Spec.RunAsGroup.Ranges, v1beta1.IDRange{
+				Min: gid,
+				Max: gid,
+			})
+		}
+	}
+
+	// set runAsUser strategy
 	if runAsUserCount == len(cssList) {
 		psp.Spec.RunAsUser.Rule = v1beta1.RunAsUserStrategyMustRunAs
 		for uid := range runAsUser {

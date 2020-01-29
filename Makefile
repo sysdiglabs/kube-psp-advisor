@@ -13,9 +13,6 @@ example:
 build:
 	@echo "+ $@"
 	./scripts/build
-build-plugin:
-	@echo "+ $@"
-	./scripts/build-plugin
 build-image:
 	@echo "+ $@"
 	docker build -f container/Dockerfile -t ${IMG}:${VERSION} .

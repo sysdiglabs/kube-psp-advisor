@@ -2,6 +2,9 @@
 
 set -eux
 
+# run unit test before build
+go test ./...
+
 export GO111MODULE=on
 
 $GOPATH/bin/goimports -w $(find . -type f -name '*.go' -not -path "./vendor/*") || true
