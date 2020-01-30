@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/api/policy/v1beta1"
-	v1rbac "k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 const (
@@ -107,47 +107,47 @@ func (s *SASecuritySpec) GetWorkloadImages() []string {
 }
 
 // GenerateRole creates a role object contains the privilege to use the psp
-func (s *SASecuritySpec) GenerateRole() *v1rbac.Role {
+func (s *SASecuritySpec) GenerateRole() *rbacv1.Role {
 	roleName := fmt.Sprintf("use-psp-by-%s:%s", s.Namespace, s.ServiceAccount)
 
-	rule := v1rbac.PolicyRule{
+	rule := rbacv1.PolicyRule{
 		Verbs:         []string{"use"},
 		APIGroups:     []string{"policy"},
 		Resources:     []string{"podsecuritypolicies"},
 		ResourceNames: []string{s.GeneratePSPName()},
 	}
 
-	return &v1rbac.Role{
-		TypeMeta: v1.TypeMeta{
+	return &rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       Role,
 			APIVersion: rbacV1APIVersion,
 		},
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: s.Namespace,
 			Name:      roleName,
 		},
-		Rules: []v1rbac.PolicyRule{rule},
+		Rules: []rbacv1.PolicyRule{rule},
 	}
 }
 
 // GenerateRoleBinding creates a rolebinding for the service account to use the psp
-func (s *SASecuritySpec) GenerateRoleBinding() *v1rbac.RoleBinding {
+func (s *SASecuritySpec) GenerateRoleBinding() *rbacv1.RoleBinding {
 	roleBindingName := fmt.Sprintf("use-psp-by-%s:%s-binding", s.Namespace, s.ServiceAccount)
 	roleName := fmt.Sprintf("use-psp-by-%s:%s", s.Namespace, s.ServiceAccount)
 
-	return &v1rbac.RoleBinding{
-		TypeMeta: v1.TypeMeta{
+	return &rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       RoleBinding,
 			APIVersion: rbacV1APIVersion,
 		},
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: s.Namespace,
 			Name:      roleBindingName,
 		},
-		Subjects: []v1rbac.Subject{
+		Subjects: []rbacv1.Subject{
 			{Kind: ServiceAccount, Name: s.ServiceAccount, Namespace: s.Namespace},
 		},
-		RoleRef: v1rbac.RoleRef{
+		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacAPIGroup,
 			Kind:     Role,
 			Name:     roleName,
@@ -158,6 +158,6 @@ func (s *SASecuritySpec) GenerateRoleBinding() *v1rbac.RoleBinding {
 type PSPGrant struct {
 	Comment           string
 	PodSecurityPolicy *v1beta1.PodSecurityPolicy
-	Role              *v1rbac.Role
-	RoleBinding       *v1rbac.RoleBinding
+	Role              *rbacv1.Role
+	RoleBinding       *rbacv1.RoleBinding
 }
