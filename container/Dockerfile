@@ -10,5 +10,5 @@ FROM alpine
 RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 COPY --from=builder /go/src/kube-psp-advisor/kube-psp-advisor /kube-psp-advisor
 
-ENTRYPOINT ["kube-psp-advisor"]
+ENTRYPOINT ["/kube-psp-advisor"]
 CMD ["inspect"]
