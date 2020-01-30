@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/sysdiglabs/kube-psp-advisor/utils"
 	"k8s.io/api/policy/v1beta1"
 )
@@ -9,6 +11,14 @@ const (
 	Reduced = iota
 	NoChange
 	Escalated
+)
+
+var (
+	m = map[int]string{
+		Reduced:   "Reduced",
+		NoChange:  "No Change",
+		Escalated: "Escalated",
+	}
 )
 
 type EscalationReport struct {
@@ -193,7 +203,11 @@ func (e *EscalationReport) NoChanges() bool {
 	return true
 }
 
-func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 v1beta1.PodSecurityPolicy) {
+func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 *v1beta1.PodSecurityPolicy) error {
+	if psp1 == nil || psp2 == nil {
+		return fmt.Errorf("psp is empty")
+	}
+
 	spec1 := psp1.Spec
 	spec2 := psp2.Spec
 
@@ -386,4 +400,10 @@ func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 v1beta1.PodSecuri
 	} else if !spec1.ReadOnlyRootFilesystem && spec2.ReadOnlyRootFilesystem {
 		e.ReadOnlyRootFS = Reduced
 	}
+
+	return nil
+}
+
+func GetEscalatedStatus(status int) string {
+	return m[status]
 }

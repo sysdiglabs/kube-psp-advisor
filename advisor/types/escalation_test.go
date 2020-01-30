@@ -135,7 +135,11 @@ func TestEscalationReportReduced(t *testing.T) {
 
 	r := NewEscalationReport()
 
-	r.GenerateEscalationReport(pspPrivileged, pspRestricted)
+	err = r.GenerateEscalationReport(pspPrivileged, pspRestricted)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if !r.PrivilegeReduced() {
 		t.Fatal("privilege should be reduced")
@@ -174,12 +178,12 @@ func TestEscalationReportReduced(t *testing.T) {
 	}
 }
 
-func readPSPYaml(pspInput string) (v1beta1.PodSecurityPolicy, error) {
+func readPSPYaml(pspInput string) (*v1beta1.PodSecurityPolicy, error) {
 	var psp v1beta1.PodSecurityPolicy
 
 	pspRestrictedJSON, err := yaml.YAMLToJSON([]byte(pspInput))
 	if err != nil {
-		return psp, err
+		return nil, err
 	}
 
 	var anyJson map[string]interface{}
@@ -187,7 +191,7 @@ func readPSPYaml(pspInput string) (v1beta1.PodSecurityPolicy, error) {
 	err = json.Unmarshal(pspRestrictedJSON, &anyJson)
 
 	if err != nil {
-		return psp, err
+		return nil, err
 	}
 
 	decoder := json.NewDecoder(bytes.NewReader(pspRestrictedJSON))
@@ -196,11 +200,11 @@ func readPSPYaml(pspInput string) (v1beta1.PodSecurityPolicy, error) {
 	switch kind := anyJson["kind"]; kind {
 	case "PodSecurityPolicy":
 		if err := decoder.Decode(&psp); err != nil {
-			return psp, err
+			return nil, err
 		}
 	default:
-		return psp, fmt.Errorf("not a valid psp file")
+		return nil, fmt.Errorf("not a valid psp file")
 	}
 
-	return psp, nil
+	return &psp, nil
 }

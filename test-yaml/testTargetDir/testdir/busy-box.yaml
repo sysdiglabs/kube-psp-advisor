@@ -10,15 +10,13 @@ spec:
     image: busybox
     args: ["sleep", "3000"]
     securityContext:
-      privileged: true
-      runAsNonRoot: false 
-      readOnlyRootFilesystem: false
+      privileged: false
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
       allowPrivilegeEscalation: true
       capabilities:
-        add:
-        - SYS_ADMIN
         drop:
         - SYS_CHROOT
-  hostPID: true
-  hostIPC: true
-  hostNetwork: true
+  hostPID: false
+  hostIPC: false
+  hostNetwork: false

@@ -7,6 +7,9 @@ VERSION=$(shell cat version)
 test:
 	@echo "+ $@"
 	./scripts/test
+unit-test:
+	@echo "+ $@"
+	go test ./...
 example:
 	@echo "+ $@"
 	./scripts/example

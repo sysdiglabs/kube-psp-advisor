@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-busybox
+  namespace: psp-test 
+spec:
+  serviceAccountName: psp-test-sa
+  containers:
+  - name: my-busybox-container
+    image: busybox
+    args: ["sleep", "3000"]
+    securityContext:
+      privileged: true
+      runAsNonRoot: false 
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: true
+      capabilities:
+        add:
+        - SYS_ADMIN
+  hostPID: true
+  hostIPC: true
+  hostNetwork: true

@@ -22,6 +22,7 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
+	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo v1.10.1 // indirect
 	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/sirupsen/logrus v1.4.2
