@@ -62,7 +62,7 @@ func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList [
 }
 
 // GeneratePSPGrant generates Pod Security Policies, Roles, RoleBindings for service accounts to use PSP
-func (p *Processor) GeneratePSPGrant(cssList []types.ContainerSecuritySpec, pssList []types.PodSecuritySpec) ([]types.PSPGrant, string) {
+func (p *Processor) GeneratePSPGrant(cssList []types.ContainerSecuritySpec, pssList []types.PodSecuritySpec) (types.PSPGrantList, string) {
 	saSecuritySpecMap := map[string]*types.SASecuritySpec{}
 	pspGrantList := []types.PSPGrant{}
 	grantWarnings := ""
@@ -96,6 +96,8 @@ func (p *Processor) GeneratePSPGrant(cssList []types.ContainerSecuritySpec, pssL
 		if !s.IsDefaultServiceAccount() {
 			pspGrant := types.PSPGrant{
 				Comment:           s.GenerateComment(),
+				ServiceAccount:    s.ServiceAccount,
+				Namespace:         s.Namespace,
 				Role:              s.GenerateRole(),
 				RoleBinding:       s.GenerateRoleBinding(),
 				PodSecurityPolicy: p.gen.GeneratePSPWithName(s.ContainerSecuritySpecList, s.PodSecuritySpecList, s.Namespace, p.serverGitVersion, s.GeneratePSPName()),
