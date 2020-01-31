@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	Reduced = iota
-	NoChange
-	Escalated
+	Reduced   = -1
+	NoChange  = 0
+	Escalated = 1
 )
 
 var (
@@ -22,6 +22,8 @@ var (
 )
 
 type EscalationReport struct {
+	OverallEscalation   bool            `json:"escalation"`
+	OverallReduction    bool            `json:"reduction"`
 	Privileged          int             `json:"privileged"`
 	HostIPC             int             `json:"hostIPC"`
 	HostNetwork         int             `json:"hostNetwork"`
@@ -75,7 +77,7 @@ func (e *EscalationReport) HostIPCReduced() bool {
 	return e.HostIPC == Reduced
 }
 
-func (e *EscalationReport) HostIPCENoChange() bool {
+func (e *EscalationReport) HostIPCNoChange() bool {
 	return e.HostIPC == NoChange
 }
 
@@ -87,7 +89,7 @@ func (e *EscalationReport) HostNetworkReduced() bool {
 	return e.HostNetwork == Reduced
 }
 
-func (e *EscalationReport) HostNetworkENoChange() bool {
+func (e *EscalationReport) HostNetworkNoChange() bool {
 	return e.HostNetwork == NoChange
 }
 
@@ -99,7 +101,7 @@ func (e *EscalationReport) HostPIDReduced() bool {
 	return e.HostPID == Reduced
 }
 
-func (e *EscalationReport) HostPIDENoChange() bool {
+func (e *EscalationReport) HostPIDNoChange() bool {
 	return e.HostPID == NoChange
 }
 
@@ -111,7 +113,7 @@ func (e *EscalationReport) ReadOnlyRootFSReduced() bool {
 	return e.ReadOnlyRootFS == Reduced
 }
 
-func (e *EscalationReport) ReadOnlyRootFSENoChange() bool {
+func (e *EscalationReport) ReadOnlyRootFSNoChange() bool {
 	return e.ReadOnlyRootFS == NoChange
 }
 
@@ -123,7 +125,7 @@ func (e *EscalationReport) RunAsUserStrategyReduced() bool {
 	return e.RunAsUserStrategy == Reduced
 }
 
-func (e *EscalationReport) RunAsUserStrategyENoChange() bool {
+func (e *EscalationReport) RunAsUserStrategyNoChange() bool {
 	return e.RunAsUserStrategy == NoChange
 }
 
@@ -135,7 +137,7 @@ func (e *EscalationReport) RunAsGroupStrategyReduced() bool {
 	return e.RunAsGroupStrategy == Reduced
 }
 
-func (e *EscalationReport) RunAsGroupStrategyENoChange() bool {
+func (e *EscalationReport) RunAsGroupStrategyNoChange() bool {
 	return e.RunAsGroupStrategy == NoChange
 }
 
@@ -153,6 +155,24 @@ func (e *EscalationReport) AddedCapabilities() bool {
 
 func (e *EscalationReport) DroppedCapabilities() bool {
 	return len(e.RemovedCapabilities) > 0
+}
+
+func (e *EscalationReport) Escalated() bool {
+	if e.PrivilegeEscalated() || e.HostNetworkEscalated() || e.HostPIDEscalated() || e.HostIPCEscalated() || e.AddedVolumes() ||
+		e.AddedCapabilities() || e.ReadOnlyRootFSEscalated() || e.RunAsGroupStrategyEscalated() || e.RunAsUserStrategyEscalated() {
+		return true
+	}
+
+	return false
+}
+
+func (e *EscalationReport) Reduced() bool {
+	if e.PrivilegeReduced() || e.HostNetworkReduced() || e.HostPIDReduced() || e.HostIPCReduced() || e.RemovedVolumes() ||
+		e.DroppedCapabilities() || e.ReadOnlyRootFSReduced() || e.RunAsGroupStrategyReduced() || e.RunAsUserStrategyReduced() {
+		return true
+	}
+
+	return false
 }
 
 func (e *EscalationReport) NoChanges() bool {
@@ -399,6 +419,14 @@ func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 *v1beta1.PodSecur
 		e.ReadOnlyRootFS = Escalated
 	} else if !spec1.ReadOnlyRootFilesystem && spec2.ReadOnlyRootFilesystem {
 		e.ReadOnlyRootFS = Reduced
+	}
+
+	if e.Escalated() {
+		e.OverallEscalation = true
+	}
+
+	if e.Reduced() {
+		e.OverallReduction = true
 	}
 
 	return nil
