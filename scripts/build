@@ -2,8 +2,11 @@
 
 set -eux
 
-export GO111MODULE=on
+export GOPATH="$HOME/go"
+export PATH="$PATH:$GOPATH/bin"
 
-$GOPATH/bin/goimports -w $(find . -type f -name '*.go' -not -path "./vendor/*") || true
+go get "golang.org/x/tools/cmd/goimports"
 
-env GOOS=$(uname -s | tr '[:upper:]' '[:lower:]') GOARCH=amd64 go build -a
+goimports -w $(find . -type f -name '*.go' -not -path "./vendor/*") || true
+
+env GO111MODULE=on GOOS=$(uname -s | tr '[:upper:]' '[:lower:]') GOARCH=amd64 go build -a

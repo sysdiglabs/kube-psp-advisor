@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+
+	"k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/ghodss/yaml"
 
@@ -13,8 +18,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
-	v1 "k8s.io/api/core/v1"
-	v1beta1 "k8s.io/api/policy/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 
 	"reflect"
 	"strings"
@@ -33,7 +38,7 @@ func NewGenerator() (*Generator, error) {
 	return &Generator{}, nil
 }
 
-func getVolumeTypes(spec v1.PodSpec, sa *v1.ServiceAccount) (volumeTypes []string) {
+func getVolumeTypes(spec corev1.PodSpec, sa *corev1.ServiceAccount) (volumeTypes []string) {
 	volumeTypeMap := map[string]bool{}
 	for _, v := range spec.Volumes {
 		if volumeType := getVolumeType(v); volumeType != "" {
@@ -51,7 +56,7 @@ func getVolumeTypes(spec v1.PodSpec, sa *v1.ServiceAccount) (volumeTypes []strin
 	return
 }
 
-func getVolumeHostPaths(spec v1.PodSpec) map[string]bool {
+func getVolumeHostPaths(spec corev1.PodSpec) map[string]bool {
 	hostPathMap := map[string]bool{}
 
 	containerMountMap := map[string]bool{}
@@ -87,7 +92,7 @@ func getVolumeHostPaths(spec v1.PodSpec) map[string]bool {
 	return hostPathMap
 }
 
-func getVolumeType(v v1.Volume) string {
+func getVolumeType(v corev1.Volume) string {
 	val := reflect.ValueOf(v.VolumeSource)
 	for i := 0; i < val.Type().NumField(); i++ {
 		if !val.Field(i).IsNil() {
@@ -102,7 +107,7 @@ func getVolumeType(v v1.Volume) string {
 	return ""
 }
 
-func getRunAsUser(sc *v1.SecurityContext, psc *v1.PodSecurityContext) *int64 {
+func getRunAsUser(sc *corev1.SecurityContext, psc *corev1.PodSecurityContext) *int64 {
 	if sc == nil {
 		if psc != nil {
 			return psc.RunAsUser
@@ -113,7 +118,7 @@ func getRunAsUser(sc *v1.SecurityContext, psc *v1.PodSecurityContext) *int64 {
 	return sc.RunAsUser
 }
 
-func getRunAsGroup(sc *v1.SecurityContext, psc *v1.PodSecurityContext) *int64 {
+func getRunAsGroup(sc *corev1.SecurityContext, psc *corev1.PodSecurityContext) *int64 {
 	if sc == nil {
 		if psc != nil {
 			return psc.RunAsGroup
@@ -124,7 +129,7 @@ func getRunAsGroup(sc *v1.SecurityContext, psc *v1.PodSecurityContext) *int64 {
 	return sc.RunAsGroup
 }
 
-func getHostPorts(containerPorts []v1.ContainerPort) (hostPorts []int32) {
+func getHostPorts(containerPorts []corev1.ContainerPort) (hostPorts []int32) {
 	for _, p := range containerPorts {
 		hostPorts = append(hostPorts, p.HostPort)
 	}
@@ -146,7 +151,7 @@ func getEffectiveCapablities(add, drop []string) (effectiveCaps []string) {
 	return
 }
 
-func getPrivileged(sc *v1.SecurityContext) bool {
+func getPrivileged(sc *corev1.SecurityContext) bool {
 	if sc == nil {
 		return false
 	}
@@ -158,7 +163,7 @@ func getPrivileged(sc *v1.SecurityContext) bool {
 	return *sc.Privileged
 }
 
-func getRunAsNonRootUser(sc *v1.SecurityContext, psc *v1.PodSecurityContext) *bool {
+func getRunAsNonRootUser(sc *corev1.SecurityContext, psc *corev1.PodSecurityContext) *bool {
 	if sc == nil {
 		if psc != nil {
 			return psc.RunAsNonRoot
@@ -169,7 +174,7 @@ func getRunAsNonRootUser(sc *v1.SecurityContext, psc *v1.PodSecurityContext) *bo
 	return sc.RunAsNonRoot
 }
 
-func getAllowedPrivilegeEscalation(sc *v1.SecurityContext) *bool {
+func getAllowedPrivilegeEscalation(sc *corev1.SecurityContext) *bool {
 	if sc == nil {
 		return nil
 	}
@@ -177,7 +182,7 @@ func getAllowedPrivilegeEscalation(sc *v1.SecurityContext) *bool {
 	return sc.AllowPrivilegeEscalation
 }
 
-func getIDs(podStatus v1.PodStatus, containerName string) (containerID, imageID string) {
+func getIDs(podStatus corev1.PodStatus, containerName string) (containerID, imageID string) {
 	containers := podStatus.ContainerStatuses
 	for _, c := range containers {
 		if c.Name == containerName {
@@ -199,7 +204,7 @@ func getIDs(podStatus v1.PodStatus, containerName string) (containerID, imageID 
 	return
 }
 
-func getReadOnlyRootFileSystem(sc *v1.SecurityContext) bool {
+func getReadOnlyRootFileSystem(sc *corev1.SecurityContext) bool {
 	if sc == nil {
 		return false
 	}
@@ -211,7 +216,7 @@ func getReadOnlyRootFileSystem(sc *v1.SecurityContext) bool {
 	return *sc.ReadOnlyRootFilesystem
 }
 
-func getCapabilities(sc *v1.SecurityContext) (addList []string, dropList []string) {
+func getCapabilities(sc *corev1.SecurityContext) (addList []string, dropList []string) {
 	if sc == nil {
 		return
 	}
@@ -233,7 +238,7 @@ func getCapabilities(sc *v1.SecurityContext) (addList []string, dropList []strin
 	return
 }
 
-func mountServiceAccountToken(spec v1.PodSpec, sa v1.ServiceAccount) bool {
+func mountServiceAccountToken(spec corev1.PodSpec, sa corev1.ServiceAccount) bool {
 	// First Pod's preference is checked
 	if spec.AutomountServiceAccountToken != nil {
 		return *spec.AutomountServiceAccountToken
@@ -247,7 +252,7 @@ func mountServiceAccountToken(spec v1.PodSpec, sa v1.ServiceAccount) bool {
 	return true
 }
 
-func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespace string, spec v1.PodSpec, sa *v1.ServiceAccount) ([]types.ContainerSecuritySpec, types.PodSecuritySpec) {
+func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespace string, spec corev1.PodSpec, sa *corev1.ServiceAccount) ([]types.ContainerSecuritySpec, types.PodSecuritySpec) {
 	cssList := []types.ContainerSecuritySpec{}
 	podSecuritySpec := types.PodSecuritySpec{
 		Metadata:       metadata,
@@ -312,7 +317,7 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 
 func (pg *Generator) GeneratePSP(cssList []types.ContainerSecuritySpec,
 	pssList []types.PodSecuritySpec,
-	namespace, serverGitVersion string) *v1beta1.PodSecurityPolicy {
+	namespace, serverGitVersion string) *policyv1beta1.PodSecurityPolicy {
 
 	return pg.GeneratePSPWithName(cssList, pssList, namespace, serverGitVersion, "")
 }
@@ -321,14 +326,14 @@ func (pg *Generator) GeneratePSP(cssList []types.ContainerSecuritySpec,
 func (pg *Generator) GeneratePSPWithName(
 	cssList []types.ContainerSecuritySpec,
 	pssList []types.PodSecuritySpec,
-	namespace, serverGitVersion, pspName string) *v1beta1.PodSecurityPolicy {
+	namespace, serverGitVersion, pspName string) *policyv1beta1.PodSecurityPolicy {
 	var ns string
 	// no PSP will be generated if no security spec is provided
 	if len(cssList) == 0 && len(pssList) == 0 {
 		return nil
 	}
 
-	psp := &v1beta1.PodSecurityPolicy{}
+	psp := &policyv1beta1.PodSecurityPolicy{}
 
 	psp.APIVersion = "policy/v1beta1"
 	psp.Kind = "PodSecurityPolicy"
@@ -424,7 +429,7 @@ func (pg *Generator) GeneratePSPWithName(
 		// set host ports
 		//TODO: need to integrate with listening port during the runtime, might cause false positive.
 		//for _, port := range sc.HostPorts {
-		//	psp.Spec.HostPorts = append(psp.Spec.HostPorts, v1beta1.HostPortRange{Min: port, Max: port})
+		//	psp.Spec.HostPorts = append(psp.Spec.HostPorts, policyv1beta1.HostPortRange{Min: port, Max: port})
 		//}
 	}
 
@@ -436,15 +441,15 @@ func (pg *Generator) GeneratePSPWithName(
 
 	// set runAsUser strategy
 	if runAsNonRootCount == len(cssList) {
-		psp.Spec.RunAsUser.Rule = v1beta1.RunAsUserStrategyMustRunAsNonRoot
+		psp.Spec.RunAsUser.Rule = policyv1beta1.RunAsUserStrategyMustRunAsNonRoot
 	}
 
 	// set runAsGroup strategy
 	if runAsGroupCount == len(cssList) {
-		psp.Spec.RunAsGroup = &v1beta1.RunAsGroupStrategyOptions{}
-		psp.Spec.RunAsGroup.Rule = v1beta1.RunAsGroupStrategyMustRunAs
+		psp.Spec.RunAsGroup = &policyv1beta1.RunAsGroupStrategyOptions{}
+		psp.Spec.RunAsGroup.Rule = policyv1beta1.RunAsGroupStrategyMustRunAs
 		for gid := range runAsGroup {
-			psp.Spec.RunAsGroup.Ranges = append(psp.Spec.RunAsGroup.Ranges, v1beta1.IDRange{
+			psp.Spec.RunAsGroup.Ranges = append(psp.Spec.RunAsGroup.Ranges, policyv1beta1.IDRange{
 				Min: gid,
 				Max: gid,
 			})
@@ -453,9 +458,9 @@ func (pg *Generator) GeneratePSPWithName(
 
 	// set runAsUser strategy
 	if runAsUserCount == len(cssList) {
-		psp.Spec.RunAsUser.Rule = v1beta1.RunAsUserStrategyMustRunAs
+		psp.Spec.RunAsUser.Rule = policyv1beta1.RunAsUserStrategyMustRunAs
 		for uid := range runAsUser {
-			psp.Spec.RunAsUser.Ranges = append(psp.Spec.RunAsUser.Ranges, v1beta1.IDRange{
+			psp.Spec.RunAsUser.Ranges = append(psp.Spec.RunAsUser.Ranges, policyv1beta1.IDRange{
 				Min: uid,
 				Max: uid,
 			})
@@ -466,7 +471,7 @@ func (pg *Generator) GeneratePSPWithName(
 	enforceReadOnly, _ := utils.CompareVersion(serverGitVersion, types.Version1_11)
 
 	for path, readOnly := range hostPaths {
-		psp.Spec.AllowedHostPaths = append(psp.Spec.AllowedHostPaths, v1beta1.AllowedHostPath{
+		psp.Spec.AllowedHostPaths = append(psp.Spec.AllowedHostPaths, policyv1beta1.AllowedHostPath{
 			PathPrefix: path,
 			ReadOnly:   readOnly || enforceReadOnly,
 		})
@@ -476,7 +481,7 @@ func (pg *Generator) GeneratePSPWithName(
 	volumeTypeList := utils.MapToArray(volumeTypes)
 
 	for _, v := range volumeTypeList {
-		psp.Spec.Volumes = append(psp.Spec.Volumes, v1beta1.FSType(v))
+		psp.Spec.Volumes = append(psp.Spec.Volumes, policyv1beta1.FSType(v))
 	}
 
 	// set allowedCapabilities
@@ -489,48 +494,48 @@ func (pg *Generator) GeneratePSPWithName(
 
 	// set allowedAddCapabilities
 	for cap := range effectiveCap {
-		psp.Spec.AllowedCapabilities = append(psp.Spec.AllowedCapabilities, v1.Capability(cap))
+		psp.Spec.AllowedCapabilities = append(psp.Spec.AllowedCapabilities, corev1.Capability(cap))
 	}
 
 	// set defaultAddCapabilities
 	for k, v := range addedCap {
 		if v == len(cssList) {
-			psp.Spec.DefaultAddCapabilities = append(psp.Spec.DefaultAddCapabilities, v1.Capability(k))
+			psp.Spec.DefaultAddCapabilities = append(psp.Spec.DefaultAddCapabilities, corev1.Capability(k))
 		}
 	}
 
 	// set requiredDroppedCapabilities
 	for k, v := range droppedCap {
 		if v == len(cssList) {
-			psp.Spec.RequiredDropCapabilities = append(psp.Spec.RequiredDropCapabilities, v1.Capability(k))
+			psp.Spec.RequiredDropCapabilities = append(psp.Spec.RequiredDropCapabilities, corev1.Capability(k))
 		}
 	}
 
 	// set to default values
 	if string(psp.Spec.RunAsUser.Rule) == "" {
-		psp.Spec.RunAsUser.Rule = v1beta1.RunAsUserStrategyRunAsAny
+		psp.Spec.RunAsUser.Rule = policyv1beta1.RunAsUserStrategyRunAsAny
 	}
 
 	if psp.Spec.RunAsGroup != nil && string(psp.Spec.RunAsGroup.Rule) == "" {
-		psp.Spec.RunAsGroup.Rule = v1beta1.RunAsGroupStrategyRunAsAny
+		psp.Spec.RunAsGroup.Rule = policyv1beta1.RunAsGroupStrategyRunAsAny
 	}
 
 	if string(psp.Spec.FSGroup.Rule) == "" {
-		psp.Spec.FSGroup.Rule = v1beta1.FSGroupStrategyRunAsAny
+		psp.Spec.FSGroup.Rule = policyv1beta1.FSGroupStrategyRunAsAny
 	}
 
 	if string(psp.Spec.SELinux.Rule) == "" {
-		psp.Spec.SELinux.Rule = v1beta1.SELinuxStrategyRunAsAny
+		psp.Spec.SELinux.Rule = policyv1beta1.SELinuxStrategyRunAsAny
 	}
 
 	if string(psp.Spec.SupplementalGroups.Rule) == "" {
-		psp.Spec.SupplementalGroups.Rule = v1beta1.SupplementalGroupsStrategyRunAsAny
+		psp.Spec.SupplementalGroups.Rule = policyv1beta1.SupplementalGroupsStrategyRunAsAny
 	}
 
 	return psp
 }
 
-func (pg *Generator) fromPodObj(metadata types.Metadata, spec v1.PodSpec) (string, error) {
+func (pg *Generator) fromPodObj(metadata types.Metadata, spec corev1.PodSpec) (string, error) {
 
 	cssList, pss := pg.GetSecuritySpecFromPodSpec(metadata, "default", spec, nil)
 
@@ -582,7 +587,7 @@ func (pg *Generator) fromStatefulSet(ss *appsv1.StatefulSet) (string, error) {
 	}, ss.Spec.Template.Spec)
 }
 
-func (pg *Generator) fromReplicationController(rc *v1.ReplicationController) (string, error) {
+func (pg *Generator) fromReplicationController(rc *corev1.ReplicationController) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: rc.Name,
 		Kind: rc.Kind,
@@ -603,7 +608,7 @@ func (pg *Generator) fromJob(job *batch.Job) (string, error) {
 	}, job.Spec.Template.Spec)
 }
 
-func (pg *Generator) fromPod(pod *v1.Pod) (string, error) {
+func (pg *Generator) fromPod(pod *corev1.Pod) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: pod.Name,
 		Kind: pod.Kind,
@@ -654,7 +659,7 @@ func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
 		}
 		return pg.fromStatefulSet(&ss)
 	case "ReplicationController":
-		var rc v1.ReplicationController
+		var rc corev1.ReplicationController
 		if err = decoder.Decode(&rc); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as ReplicationController: %v", err)
 		}
@@ -672,7 +677,7 @@ func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
 		}
 		return pg.fromJob(&job)
 	case "Pod":
-		var pod v1.Pod
+		var pod corev1.Pod
 		if err = decoder.Decode(&pod); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as Pod: %v", err)
 		}
@@ -682,10 +687,136 @@ func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
 	return "", fmt.Errorf("K8s Object not one of supported types")
 }
 
-func getServiceAccountName(spec v1.PodSpec) string {
+func (pg *Generator) GeneratePSPFormYamls(yamls []string) (*policyv1beta1.PodSecurityPolicy, error) {
+	cssList := []types.ContainerSecuritySpec{}
+	pssList := []types.PodSecuritySpec{}
+	for _, yamlFile := range yamls {
+		csl, psl, err := pg.loadYaml(yamlFile)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(csl) > 0 {
+			cssList = append(cssList, csl...)
+			pssList = append(pssList, psl...)
+		}
+	}
+
+	psp := pg.GeneratePSP(cssList, pssList, "", types.Version1_11)
+
+	return psp, nil
+}
+
+func (pg *Generator) loadYaml(yamlFile string) ([]types.ContainerSecuritySpec, []types.PodSecuritySpec, error) {
+	cssList := []types.ContainerSecuritySpec{}
+	pssList := []types.PodSecuritySpec{}
+
+	file, err := os.Open(yamlFile)
+	if err != nil {
+		return cssList, pssList, fmt.Errorf("failed to open yaml file %s for reading: %v", yamlFile, err)
+	}
+	defer file.Close()
+
+	fileBytes, err := ioutil.ReadAll(file)
+
+	sepYamlFiles := strings.Split(string(fileBytes), "---")
+
+	for _, f := range sepYamlFiles {
+		if f == "\n" || f == "" {
+			// ignore empty cases
+			continue
+		}
+
+		// remove comments: line starts with #
+		lines := strings.Split(f, "\n")
+		newLines := []string{}
+		for _, line := range lines {
+			if line != "" && line != "\n" && !strings.HasPrefix(line, "#") {
+				newLines = append(newLines, line)
+			}
+		}
+
+		if len(newLines) == 0 {
+			continue
+		}
+
+		newFile := strings.Join(newLines, "\n")
+
+		csl := []types.ContainerSecuritySpec{}
+		pss := types.PodSecuritySpec{}
+
+		decode := scheme.Codecs.UniversalDeserializer().Decode
+		obj, _, err := decode([]byte(newFile), nil, nil)
+
+		if err != nil {
+			log.Println(fmt.Sprintf("Error while decoding YAML object: %s. Error was: %s", newFile, err))
+			continue
+		}
+
+		switch o := obj.(type) {
+		case *corev1.Pod:
+			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
+				Name: o.Name,
+				Kind: o.Kind,
+			}, getNamespace(o.Namespace), o.Spec, nil)
+		case *appsv1.StatefulSet:
+			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
+				Name: o.Name,
+				Kind: o.Kind,
+			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
+		case *appsv1.DaemonSet:
+			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
+				Name: o.Name,
+				Kind: o.Kind,
+			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
+		case *appsv1.Deployment:
+			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
+				Name: o.Name,
+				Kind: o.Kind,
+			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
+		case *appsv1.ReplicaSet:
+			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
+				Name: o.Name,
+				Kind: o.Kind,
+			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
+		case *corev1.ReplicationController:
+			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
+				Name: o.Name,
+				Kind: o.Kind,
+			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
+		case *batchv1beta1.CronJob:
+			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
+				Name: o.Name,
+				Kind: o.Kind,
+			}, getNamespace(o.Namespace), o.Spec.JobTemplate.Spec.Template.Spec, nil)
+		case *batch.Job:
+			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
+				Name: o.Name,
+				Kind: o.Kind,
+			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
+		}
+
+		if len(csl) > 0 {
+			cssList = append(cssList, csl...)
+			pssList = append(pssList, pss)
+		}
+	}
+
+	return cssList, pssList, nil
+}
+
+func getServiceAccountName(spec corev1.PodSpec) string {
 	if spec.ServiceAccountName == "" {
 		return "default"
 	}
 
 	return spec.ServiceAccountName
+}
+
+func getNamespace(ns string) string {
+	if ns != "" {
+		return ns
+	}
+
+	return "default"
 }

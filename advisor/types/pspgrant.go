@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -21,8 +20,8 @@ const (
 type SASecuritySpecList []*SASecuritySpec
 
 func (sl SASecuritySpecList) Less(i, j int) bool {
-	keyI := fmt.Sprintf("%s:%s", sl[i].Namespace, sl[i].ServiceAccount)
-	keyJ := fmt.Sprintf("%s:%s", sl[j].Namespace, sl[j].ServiceAccount)
+	keyI := sl[i].Key()
+	keyJ := sl[j].Key()
 
 	return keyI < keyJ
 }
@@ -50,6 +49,10 @@ func NewSASecuritySpec(ns, sa string) *SASecuritySpec {
 		ContainerSecuritySpecList: []ContainerSecuritySpec{},
 		PodSecuritySpecList:       []PodSecuritySpec{},
 	}
+}
+
+func (s *SASecuritySpec) Key() string {
+	return fmt.Sprintf("%s:%s", s.Namespace, s.ServiceAccount)
 }
 
 // IsDefaultServiceAccount returns whether the service account is default
@@ -155,9 +158,27 @@ func (s *SASecuritySpec) GenerateRoleBinding() *rbacv1.RoleBinding {
 	}
 }
 
+type PSPGrantList []PSPGrant
+
+func (pgl PSPGrantList) ToMap() map[string]PSPGrant {
+	m := map[string]PSPGrant{}
+
+	for _, pg := range pgl {
+		m[pg.Key()] = pg
+	}
+
+	return m
+}
+
 type PSPGrant struct {
 	Comment           string
 	PodSecurityPolicy *v1beta1.PodSecurityPolicy
 	Role              *rbacv1.Role
 	RoleBinding       *rbacv1.RoleBinding
+	ServiceAccount    string
+	Namespace         string
+}
+
+func (pg PSPGrant) Key() string {
+	return fmt.Sprintf("%s:%s", pg.Namespace, pg.ServiceAccount)
 }
