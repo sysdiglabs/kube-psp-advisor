@@ -130,7 +130,7 @@ func (c *Comparator) PrintEscalationReport(jsonFormat bool) {
 
 		table2.Render()
 	} else {
-		data, _ := json.MarshalIndent(c.escalationReport, "", "    ")
+		data, _ := json.Marshal(c.escalationReport)
 
 		fmt.Println(string(data))
 	}

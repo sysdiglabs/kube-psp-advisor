@@ -28,8 +28,8 @@ type EscalationReport struct {
 	HostIPC             int             `json:"hostIPC"`
 	HostNetwork         int             `json:"hostNetwork"`
 	HostPID             int             `json:"hostPID"`
-	NewHostPaths        map[string]bool `json:"new_hostpaths"`
-	RemovedHostPaths    map[string]bool `json:"removed_hostpaths"`
+	NewHostPaths        map[string]bool `json:"-"`
+	RemovedHostPaths    map[string]bool `json:"-"`
 	NewVolumeTypes      []string        `json:"new_volume_types"`
 	RemovedVolumeTypes  []string        `json:"removed_volume_types"`
 	NewCapabilities     []string        `json:"new_capabilities"`
