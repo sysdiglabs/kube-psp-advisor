@@ -24,10 +24,10 @@ var (
 type EscalationReport struct {
 	OverallEscalation   bool            `json:"escalation"`
 	OverallReduction    bool            `json:"reduction"`
-	Privileged          int             `json:"privileged"`
-	HostIPC             int             `json:"hostIPC"`
-	HostNetwork         int             `json:"hostNetwork"`
-	HostPID             int             `json:"hostPID"`
+	Privileged          Escalation      `json:"privileged"`
+	HostIPC             Escalation      `json:"hostIPC"`
+	HostNetwork         Escalation      `json:"hostNetwork"`
+	HostPID             Escalation      `json:"hostPID"`
 	NewHostPaths        map[string]bool `json:"-"`
 	RemovedHostPaths    map[string]bool `json:"-"`
 	NewVolumeTypes      []string        `json:"new_volume_types"`
@@ -36,15 +36,35 @@ type EscalationReport struct {
 	RemovedCapabilities []string        `json:"reduced_capabilities"`
 	RunAsUserStrategy   int             `json:"run_as_user_strategy"`
 	RunAsGroupStrategy  int             `json:"un_as_group_strategy"`
-	ReadOnlyRootFS      int             `json:"read_only_root_fs"`
+	ReadOnlyRootFS      Escalation      `json:"read_only_root_fs"`
+}
+
+type Escalation struct {
+	Status        int               `json:"status"`
+	StatusMessage string            `json:"status_message"`
+	Previous      string            `json:"previous"`
+	Current       string            `json:"current"`
+	Workloads     []Metadata        `json:"workloads"`
+	workloadMap   map[Metadata]bool `json:"-"`
+}
+
+func InitEscalation() Escalation {
+	return Escalation{
+		Status:        NoChange,
+		StatusMessage: GetEscalatedStatus(NoChange),
+		Previous:      "",
+		Current:       "",
+		Workloads:     []Metadata{},
+		workloadMap:   map[Metadata]bool{},
+	}
 }
 
 func NewEscalationReport() *EscalationReport {
 	return &EscalationReport{
-		Privileged:          NoChange,
-		HostNetwork:         NoChange,
-		HostIPC:             NoChange,
-		HostPID:             NoChange,
+		Privileged:          InitEscalation(),
+		HostNetwork:         InitEscalation(),
+		HostIPC:             InitEscalation(),
+		HostPID:             InitEscalation(),
 		NewHostPaths:        map[string]bool{},
 		NewCapabilities:     []string{},
 		NewVolumeTypes:      []string{},
@@ -53,68 +73,68 @@ func NewEscalationReport() *EscalationReport {
 		RemovedVolumeTypes:  []string{},
 		RunAsGroupStrategy:  NoChange,
 		RunAsUserStrategy:   NoChange,
-		ReadOnlyRootFS:      NoChange,
+		ReadOnlyRootFS:      InitEscalation(),
 	}
 }
 
 func (e *EscalationReport) PrivilegeEscalated() bool {
-	return e.Privileged == Escalated
+	return e.Privileged.Status == Escalated
 }
 
 func (e *EscalationReport) PrivilegeReduced() bool {
-	return e.Privileged == Reduced
+	return e.Privileged.Status == Reduced
 }
 
 func (e *EscalationReport) PrivilegeNoChange() bool {
-	return e.Privileged == NoChange
+	return e.Privileged.Status == NoChange
 }
 
 func (e *EscalationReport) HostIPCEscalated() bool {
-	return e.HostIPC == Escalated
+	return e.HostIPC.Status == Escalated
 }
 
 func (e *EscalationReport) HostIPCReduced() bool {
-	return e.HostIPC == Reduced
+	return e.HostIPC.Status == Reduced
 }
 
 func (e *EscalationReport) HostIPCNoChange() bool {
-	return e.HostIPC == NoChange
+	return e.HostIPC.Status == NoChange
 }
 
 func (e *EscalationReport) HostNetworkEscalated() bool {
-	return e.HostNetwork == Escalated
+	return e.HostNetwork.Status == Escalated
 }
 
 func (e *EscalationReport) HostNetworkReduced() bool {
-	return e.HostNetwork == Reduced
+	return e.HostNetwork.Status == Reduced
 }
 
 func (e *EscalationReport) HostNetworkNoChange() bool {
-	return e.HostNetwork == NoChange
+	return e.HostNetwork.Status == NoChange
 }
 
 func (e *EscalationReport) HostPIDEscalated() bool {
-	return e.HostPID == Escalated
+	return e.HostPID.Status == Escalated
 }
 
 func (e *EscalationReport) HostPIDReduced() bool {
-	return e.HostPID == Reduced
+	return e.HostPID.Status == Reduced
 }
 
 func (e *EscalationReport) HostPIDNoChange() bool {
-	return e.HostPID == NoChange
+	return e.HostPID.Status == NoChange
 }
 
 func (e *EscalationReport) ReadOnlyRootFSEscalated() bool {
-	return e.ReadOnlyRootFS == Escalated
+	return e.ReadOnlyRootFS.Status == Escalated
 }
 
 func (e *EscalationReport) ReadOnlyRootFSReduced() bool {
-	return e.ReadOnlyRootFS == Reduced
+	return e.ReadOnlyRootFS.Status == Reduced
 }
 
 func (e *EscalationReport) ReadOnlyRootFSNoChange() bool {
-	return e.ReadOnlyRootFS == NoChange
+	return e.ReadOnlyRootFS.Status == NoChange
 }
 
 func (e *EscalationReport) RunAsUserStrategyEscalated() bool {
@@ -176,19 +196,19 @@ func (e *EscalationReport) Reduced() bool {
 }
 
 func (e *EscalationReport) NoChanges() bool {
-	if e.Privileged != NoChange {
+	if e.Privileged.Status != NoChange {
 		return false
 	}
 
-	if e.HostIPC != NoChange {
+	if e.HostIPC.Status != NoChange {
 		return false
 	}
 
-	if e.HostPID != NoChange {
+	if e.HostPID.Status != NoChange {
 		return false
 	}
 
-	if e.HostNetwork != NoChange {
+	if e.HostNetwork.Status != NoChange {
 		return false
 	}
 
@@ -200,7 +220,7 @@ func (e *EscalationReport) NoChanges() bool {
 		return false
 	}
 
-	if e.ReadOnlyRootFS != NoChange {
+	if e.ReadOnlyRootFS.Status != NoChange {
 		return false
 	}
 
@@ -233,30 +253,38 @@ func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 *v1beta1.PodSecur
 
 	// privileged mode
 	if !spec1.Privileged && spec2.Privileged {
-		e.Privileged = Escalated
+		e.Privileged.Status = Escalated
+		e.Privileged.StatusMessage = GetEscalatedStatus(Escalated)
 	} else if spec1.Privileged && !spec2.Privileged {
-		e.Privileged = Reduced
+		e.Privileged.Status = Reduced
+		e.Privileged.StatusMessage = GetEscalatedStatus(Reduced)
 	}
 
 	// hostNetwork
 	if !spec1.HostNetwork && spec2.HostNetwork {
-		e.HostNetwork = Escalated
+		e.HostNetwork.Status = Escalated
+		e.HostNetwork.StatusMessage = GetEscalatedStatus(Escalated)
 	} else if spec1.HostNetwork && !spec2.HostNetwork {
-		e.HostNetwork = Reduced
+		e.HostNetwork.Status = Reduced
+		e.HostNetwork.StatusMessage = GetEscalatedStatus(Reduced)
 	}
 
 	// hostPID
 	if !spec1.HostPID && spec2.HostPID {
-		e.HostPID = Escalated
+		e.HostPID.Status = Escalated
+		e.HostPID.StatusMessage = GetEscalatedStatus(Escalated)
 	} else if spec1.HostPID && !spec2.HostPID {
-		e.HostPID = Reduced
+		e.HostPID.Status = Reduced
+		e.HostPID.StatusMessage = GetEscalatedStatus(Reduced)
 	}
 
 	// hostIPC
 	if !spec1.HostIPC && spec2.HostIPC {
-		e.HostIPC = Escalated
+		e.HostIPC.Status = Escalated
+		e.HostIPC.StatusMessage = GetEscalatedStatus(Escalated)
 	} else if spec1.HostIPC && !spec2.HostIPC {
-		e.HostIPC = Reduced
+		e.HostIPC.Status = Reduced
+		e.HostIPC.StatusMessage = GetEscalatedStatus(Reduced)
 	}
 
 	//TODO: host paths
@@ -416,9 +444,11 @@ func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 *v1beta1.PodSecur
 
 	// readOnlyFS
 	if spec1.ReadOnlyRootFilesystem && !spec2.ReadOnlyRootFilesystem {
-		e.ReadOnlyRootFS = Escalated
+		e.ReadOnlyRootFS.Status = Escalated
+		e.ReadOnlyRootFS.StatusMessage = GetEscalatedStatus(Escalated)
 	} else if !spec1.ReadOnlyRootFilesystem && spec2.ReadOnlyRootFilesystem {
-		e.ReadOnlyRootFS = Reduced
+		e.ReadOnlyRootFS.Status = Reduced
+		e.ReadOnlyRootFS.StatusMessage = GetEscalatedStatus(Reduced)
 	}
 
 	if e.Escalated() {
@@ -430,6 +460,141 @@ func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 *v1beta1.PodSecur
 	}
 
 	return nil
+}
+
+func (e *EscalationReport) EnrichEscalationReport(srcCssList, targetCssList []ContainerSecuritySpec, srcPssList, targetPssList []PodSecuritySpec) {
+	srcCssMap := map[Metadata]ContainerSecuritySpec{}
+	targetCssMap := map[Metadata]ContainerSecuritySpec{}
+
+	srcPssMap := map[Metadata]PodSecuritySpec{}
+	targetPssMap := map[Metadata]PodSecuritySpec{}
+
+	for _, css := range srcCssList {
+		srcCssMap[css.Metadata] = css
+	}
+
+	for _, css := range targetCssList {
+		targetCssMap[css.Metadata] = css
+	}
+
+	for _, pss := range srcPssList {
+		srcPssMap[pss.Metadata] = pss
+	}
+
+	for _, pss := range targetPssList {
+		targetPssMap[pss.Metadata] = pss
+	}
+
+	// privileged
+	if e.Privileged.Status == Escalated {
+		for meta, targetCss := range targetCssMap {
+			srcCss, exits := srcCssMap[meta]
+			if targetCss.Privileged && (!exits || !srcCss.Privileged) {
+				e.Privileged.workloadMap[meta] = true
+			}
+		}
+	} else if e.Privileged.Status == Reduced {
+		for meta, srcCss := range srcCssMap {
+			targetCss, exists := targetCssMap[meta]
+
+			if srcCss.Privileged && (!exists || !targetCss.Privileged) {
+				e.Privileged.workloadMap[meta] = true
+			}
+		}
+	}
+
+	for w := range e.Privileged.workloadMap {
+		e.Privileged.Workloads = append(e.Privileged.Workloads, w)
+	}
+
+	// hostNetwork
+	if e.HostNetwork.Status == Escalated {
+		for meta, targetPss := range targetPssMap {
+			srcPss, exits := srcPssMap[meta]
+			if targetPss.HostNetwork && (!exits || !srcPss.HostNetwork) {
+				e.HostNetwork.workloadMap[meta] = true
+			}
+		}
+	} else if e.HostNetwork.Status == Reduced {
+		for meta, srcPss := range srcPssMap {
+			targetPss, exists := targetPssMap[meta]
+
+			if srcPss.HostNetwork && (!exists || !targetPss.HostNetwork) {
+				e.HostNetwork.workloadMap[meta] = true
+			}
+		}
+	}
+
+	for w := range e.HostNetwork.workloadMap {
+		e.HostNetwork.Workloads = append(e.HostNetwork.Workloads, w)
+	}
+
+	// HostIPC
+	if e.HostIPC.Status == Escalated {
+		for meta, targetPss := range targetPssMap {
+			srcPss, exits := srcPssMap[meta]
+			if targetPss.HostIPC && (!exits || !srcPss.HostIPC) {
+				e.HostIPC.workloadMap[meta] = true
+			}
+		}
+	} else if e.HostIPC.Status == Reduced {
+		for meta, srcPss := range srcPssMap {
+			targetPss, exists := targetPssMap[meta]
+
+			if srcPss.HostIPC && (!exists || !targetPss.HostIPC) {
+				e.HostIPC.workloadMap[meta] = true
+			}
+		}
+	}
+
+	for w := range e.HostIPC.workloadMap {
+		e.HostIPC.Workloads = append(e.HostIPC.Workloads, w)
+	}
+
+	// HostPID
+	if e.HostPID.Status == Escalated {
+		for meta, targetPss := range targetPssMap {
+			srcPss, exits := srcPssMap[meta]
+			if targetPss.HostPID && (!exits || !srcPss.HostPID) {
+				e.HostPID.workloadMap[meta] = true
+			}
+		}
+	} else if e.HostPID.Status == Reduced {
+		for meta, srcPss := range srcPssMap {
+			targetPss, exists := targetPssMap[meta]
+
+			if srcPss.HostPID && (!exists || !targetPss.HostPID) {
+				e.HostPID.workloadMap[meta] = true
+			}
+		}
+	}
+
+	for w := range e.HostPID.workloadMap {
+		e.HostPID.Workloads = append(e.HostPID.Workloads, w)
+	}
+
+	// ReadOnlyRootFS
+	if e.ReadOnlyRootFS.Status == Escalated {
+		for meta, targetCss := range targetCssMap {
+			srcCss, exits := srcCssMap[meta]
+			if !targetCss.ReadOnlyRootFS && (exits && srcCss.ReadOnlyRootFS) {
+				e.ReadOnlyRootFS.workloadMap[meta] = true
+			}
+		}
+	} else if e.ReadOnlyRootFS.Status == Reduced {
+		for meta, srcCss := range srcCssMap {
+			targetCss, exists := targetCssMap[meta]
+
+			if !srcCss.ReadOnlyRootFS && (exists && targetCss.ReadOnlyRootFS) {
+				e.ReadOnlyRootFS.workloadMap[meta] = true
+			}
+		}
+	}
+
+	for w := range e.ReadOnlyRootFS.workloadMap {
+		e.ReadOnlyRootFS.Workloads = append(e.ReadOnlyRootFS.Workloads, w)
+	}
+
 }
 
 func GetEscalatedStatus(status int) string {

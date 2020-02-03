@@ -72,6 +72,8 @@ type PodSecuritySpec struct {
 }
 
 type Metadata struct {
-	Name string `json:"name"`
-	Kind string `json:"kind"`
+	Name      string `json:"name"`
+	Kind      string `json:"kind"`
+	Namespace string `json:"namespace"`
+	YamlFile  string `json:"file"`
 }

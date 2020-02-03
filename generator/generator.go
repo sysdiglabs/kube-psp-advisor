@@ -691,7 +691,7 @@ func (pg *Generator) GeneratePSPFormYamls(yamls []string) (*policyv1beta1.PodSec
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 	for _, yamlFile := range yamls {
-		csl, psl, err := pg.loadYaml(yamlFile)
+		csl, psl, err := pg.LoadYaml(yamlFile)
 		if err != nil {
 			return nil, err
 		}
@@ -707,7 +707,7 @@ func (pg *Generator) GeneratePSPFormYamls(yamls []string) (*policyv1beta1.PodSec
 	return psp, nil
 }
 
-func (pg *Generator) loadYaml(yamlFile string) ([]types.ContainerSecuritySpec, []types.PodSecuritySpec, error) {
+func (pg *Generator) LoadYaml(yamlFile string) ([]types.ContainerSecuritySpec, []types.PodSecuritySpec, error) {
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
@@ -756,43 +756,59 @@ func (pg *Generator) loadYaml(yamlFile string) ([]types.ContainerSecuritySpec, [
 		switch o := obj.(type) {
 		case *corev1.Pod:
 			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
-				Name: o.Name,
-				Kind: o.Kind,
+				Name:      o.Name,
+				Kind:      o.Kind,
+				Namespace: getNamespace(o.Namespace),
+				YamlFile:  yamlFile,
 			}, getNamespace(o.Namespace), o.Spec, nil)
 		case *appsv1.StatefulSet:
 			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
-				Name: o.Name,
-				Kind: o.Kind,
+				Name:      o.Name,
+				Kind:      o.Kind,
+				Namespace: getNamespace(o.Namespace),
+				YamlFile:  yamlFile,
 			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
 		case *appsv1.DaemonSet:
 			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
-				Name: o.Name,
-				Kind: o.Kind,
+				Name:      o.Name,
+				Kind:      o.Kind,
+				Namespace: getNamespace(o.Namespace),
+				YamlFile:  yamlFile,
 			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
 		case *appsv1.Deployment:
 			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
-				Name: o.Name,
-				Kind: o.Kind,
+				Name:      o.Name,
+				Kind:      o.Kind,
+				Namespace: getNamespace(o.Namespace),
+				YamlFile:  yamlFile,
 			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
 		case *appsv1.ReplicaSet:
 			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
-				Name: o.Name,
-				Kind: o.Kind,
+				Name:      o.Name,
+				Kind:      o.Kind,
+				Namespace: getNamespace(o.Namespace),
+				YamlFile:  yamlFile,
 			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
 		case *corev1.ReplicationController:
 			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
-				Name: o.Name,
-				Kind: o.Kind,
+				Name:      o.Name,
+				Kind:      o.Kind,
+				Namespace: getNamespace(o.Namespace),
+				YamlFile:  yamlFile,
 			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
 		case *batchv1beta1.CronJob:
 			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
-				Name: o.Name,
-				Kind: o.Kind,
+				Name:      o.Name,
+				Kind:      o.Kind,
+				Namespace: getNamespace(o.Namespace),
+				YamlFile:  yamlFile,
 			}, getNamespace(o.Namespace), o.Spec.JobTemplate.Spec.Template.Spec, nil)
 		case *batch.Job:
 			csl, pss = pg.GetSecuritySpecFromPodSpec(types.Metadata{
-				Name: o.Name,
-				Kind: o.Kind,
+				Name:      o.Name,
+				Kind:      o.Kind,
+				Namespace: getNamespace(o.Namespace),
+				YamlFile:  yamlFile,
 			}, getNamespace(o.Namespace), o.Spec.Template.Spec, nil)
 		}
 

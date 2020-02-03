@@ -100,32 +100,27 @@ func comparePsp(srcDir, targetDir string, jsonFormat bool) error {
 		return fmt.Errorf("failed to read target workload directory %s: %s", targetDir, err)
 	}
 
-	psp_gen, err := generator.NewGenerator()
-	if err != nil {
-		return fmt.Errorf("failed to create PSP Generator: %v", err)
-	}
-
-	srcPSP, err := psp_gen.GeneratePSPFormYamls(srcYamls)
-
-	if err != nil {
-		return fmt.Errorf("failed to generate PSP from source: %v", err)
-	}
-
-	targetPSP, err := psp_gen.GeneratePSPFormYamls(targetYamls)
-
-	if err != nil {
-		return fmt.Errorf("failed to generate PSP from target: %v", err)
-	}
-
-	comparator, err := comparator.NewComparator()
+	c, err := comparator.NewComparator()
 
 	if err != nil {
 		return fmt.Errorf("failed to create PSP comparator")
 	}
 
-	comparator.ComparePSP(srcPSP, targetPSP)
+	err = c.LoadYamls(srcYamls, comparator.Source)
 
-	comparator.PrintEscalationReport(jsonFormat)
+	if err != nil {
+		return fmt.Errorf("failed to create PSP comparator")
+	}
+
+	err = c.LoadYamls(targetYamls, comparator.Target)
+
+	if err != nil {
+		return fmt.Errorf("failed to create PSP comparator")
+	}
+
+	c.Compare()
+
+	c.PrintEscalationReport(jsonFormat)
 
 	return nil
 }
