@@ -132,6 +132,14 @@ golang.org/x/tools v0.0.0-20200131211209-ecb101ed6550 h1:3Kc3/T5DQ/majKzDmb+0Nzm
 golang.org/x/tools v0.0.0-20200131211209-ecb101ed6550/go.mod h1:TB2adYChydJhpapKDTa4BR/hXlZSLoq2Wpct/0txZ28=
 golang.org/x/tools v0.0.0-20200203193511-33212cd6a08a h1:Cei3bpoIrTzAO7IGSBzZmj1VyIiNcf36hIH6Dhv8h4g=
 golang.org/x/tools v0.0.0-20200203193511-33212cd6a08a/go.mod h1:TB2adYChydJhpapKDTa4BR/hXlZSLoq2Wpct/0txZ28=
+golang.org/x/tools v0.0.0-20200203222849-174f5c63c9f5 h1:b+tBIZFU87VKnTk6WXPq8InZqKyHmh/Q3dSYjCs7dhg=
+golang.org/x/tools v0.0.0-20200203222849-174f5c63c9f5/go.mod h1:TB2adYChydJhpapKDTa4BR/hXlZSLoq2Wpct/0txZ28=
+golang.org/x/tools v0.0.0-20200204005449-35ac94b00d9e h1:o1E/dn6ydYwYuZkF+6kaoS6ON5TokWgL24pxcgxd5MM=
+golang.org/x/tools v0.0.0-20200204005449-35ac94b00d9e/go.mod h1:TB2adYChydJhpapKDTa4BR/hXlZSLoq2Wpct/0txZ28=
+golang.org/x/tools v0.0.0-20200204074204-1cc6d1ef6c74 h1:KW20qMcLRWuIgjdCpHFJbVZA7zsDKtFXPNcm7/eI5ZA=
+golang.org/x/tools v0.0.0-20200204074204-1cc6d1ef6c74/go.mod h1:TB2adYChydJhpapKDTa4BR/hXlZSLoq2Wpct/0txZ28=
+golang.org/x/tools v0.0.0-20200204192400-7124308813f3 h1:Ms82wn6YK4ZycO6Bxyh0kxX3gFFVGo79CCuc52xgcys=
+golang.org/x/tools v0.0.0-20200204192400-7124308813f3/go.mod h1:TB2adYChydJhpapKDTa4BR/hXlZSLoq2Wpct/0txZ28=
 golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/appengine v1.4.0 h1:/wp5JvzpHIxhs/dumFmF7BXTf3Z+dd4uXta4kVyO508=
 google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=

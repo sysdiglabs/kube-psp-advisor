@@ -88,6 +88,8 @@ func (c *Comparator) Compare() bool {
 	}
 
 	c.escalationReport.EnrichEscalationReport(c.srcCssList, c.targetCssList, c.srcPssList, c.targetPssList)
+	log.Printf("%+v\n", c.srcCssList)
+	log.Printf("%+v\n", c.targetCssList)
 
 	return c.escalationReport.NoChanges()
 }
@@ -170,7 +172,7 @@ func (c *Comparator) PrintEscalationReport(jsonFormat bool) {
 			{"hostNetwork", getBool(c.srcPSP.Spec.HostNetwork), getBool(c.targetPSP.Spec.HostNetwork), types.GetEscalatedStatus(c.escalationReport.HostNetwork.Status), ""},
 			{"HostPID", getBool(c.srcPSP.Spec.HostPID), getBool(c.targetPSP.Spec.HostPID), types.GetEscalatedStatus(c.escalationReport.HostPID.Status), ""},
 			{"ReadOnlyRootFileSystem", getBool(c.srcPSP.Spec.ReadOnlyRootFilesystem), getBool(c.targetPSP.Spec.ReadOnlyRootFilesystem), types.GetEscalatedStatus(c.escalationReport.ReadOnlyRootFS.Status), ""},
-			{"RunAsUserStrategy", string(c.srcPSP.Spec.RunAsUser.Rule), string(c.targetPSP.Spec.RunAsUser.Rule), types.GetEscalatedStatus(c.escalationReport.RunAsUserStrategy), ""},
+			{"RunAsUserStrategy", string(c.srcPSP.Spec.RunAsUser.Rule), string(c.targetPSP.Spec.RunAsUser.Rule), types.GetEscalatedStatus(c.escalationReport.RunAsUserStrategy.Status), ""},
 		}
 
 		srcRunAsGroup := ""
@@ -185,11 +187,11 @@ func (c *Comparator) PrintEscalationReport(jsonFormat bool) {
 		if c.targetPSP.Spec.RunAsGroup == nil {
 			targetRunAsGroup = string(v1beta1.RunAsGroupStrategyRunAsAny)
 		} else {
-			srcRunAsGroup = string(c.targetPSP.Spec.RunAsGroup.Rule)
+			targetRunAsGroup = string(c.targetPSP.Spec.RunAsGroup.Rule)
 		}
 
 		data = append(data,
-			[]string{"RunAsGroupStrategy", srcRunAsGroup, targetRunAsGroup, types.GetEscalatedStatus(c.escalationReport.RunAsGroupStrategy)})
+			[]string{"RunAsGroupStrategy", srcRunAsGroup, targetRunAsGroup, types.GetEscalatedStatus(c.escalationReport.RunAsGroupStrategy.Status)})
 
 		table1.AppendBulk(data)
 

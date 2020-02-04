@@ -24,19 +24,19 @@ var (
 type EscalationReport struct {
 	OverallEscalation   bool            `json:"escalation"`
 	OverallReduction    bool            `json:"reduction"`
-	Privileged          Escalation      `json:"privileged"`
-	HostIPC             Escalation      `json:"hostIPC"`
-	HostNetwork         Escalation      `json:"hostNetwork"`
-	HostPID             Escalation      `json:"hostPID"`
+	Privileged          *Escalation     `json:"privileged"`
+	HostIPC             *Escalation     `json:"hostIPC"`
+	HostNetwork         *Escalation     `json:"hostNetwork"`
+	HostPID             *Escalation     `json:"hostPID"`
 	NewHostPaths        map[string]bool `json:"-"`
 	RemovedHostPaths    map[string]bool `json:"-"`
 	NewVolumeTypes      []string        `json:"new_volume_types"`
 	RemovedVolumeTypes  []string        `json:"removed_volume_types"`
 	NewCapabilities     []string        `json:"new_capabilities"`
 	RemovedCapabilities []string        `json:"reduced_capabilities"`
-	RunAsUserStrategy   int             `json:"run_as_user_strategy"`
-	RunAsGroupStrategy  int             `json:"un_as_group_strategy"`
-	ReadOnlyRootFS      Escalation      `json:"read_only_root_fs"`
+	RunAsUserStrategy   *Escalation     `json:"run_as_user_strategy"`
+	RunAsGroupStrategy  *Escalation     `json:"run_as_group_strategy"`
+	ReadOnlyRootFS      *Escalation     `json:"read_only_root_fs"`
 }
 
 type Escalation struct {
@@ -48,8 +48,8 @@ type Escalation struct {
 	workloadMap   map[Metadata]bool `json:"-"`
 }
 
-func InitEscalation() Escalation {
-	return Escalation{
+func InitEscalation() *Escalation {
+	return &Escalation{
 		Status:        NoChange,
 		StatusMessage: GetEscalatedStatus(NoChange),
 		Previous:      "",
@@ -57,6 +57,25 @@ func InitEscalation() Escalation {
 		Workloads:     []Metadata{},
 		workloadMap:   map[Metadata]bool{},
 	}
+}
+
+func (e *Escalation) SetEscalation(status int, prev, cur string) {
+	e.Status = status
+	e.StatusMessage = GetEscalatedStatus(status)
+	e.Previous = prev
+	e.Current = cur
+}
+
+func (e *Escalation) IsEscalated() bool {
+	return e.Status == Escalated
+}
+
+func (e *Escalation) IsReduced() bool {
+	return e.Status == Reduced
+}
+
+func (e *Escalation) NoChanges() bool {
+	return e.Status == NoChange
 }
 
 func NewEscalationReport() *EscalationReport {
@@ -71,94 +90,94 @@ func NewEscalationReport() *EscalationReport {
 		RemovedCapabilities: []string{},
 		RemovedHostPaths:    map[string]bool{},
 		RemovedVolumeTypes:  []string{},
-		RunAsGroupStrategy:  NoChange,
-		RunAsUserStrategy:   NoChange,
+		RunAsGroupStrategy:  InitEscalation(),
+		RunAsUserStrategy:   InitEscalation(),
 		ReadOnlyRootFS:      InitEscalation(),
 	}
 }
 
 func (e *EscalationReport) PrivilegeEscalated() bool {
-	return e.Privileged.Status == Escalated
+	return e.Privileged.IsEscalated()
 }
 
 func (e *EscalationReport) PrivilegeReduced() bool {
-	return e.Privileged.Status == Reduced
+	return e.Privileged.IsReduced()
 }
 
 func (e *EscalationReport) PrivilegeNoChange() bool {
-	return e.Privileged.Status == NoChange
+	return e.Privileged.NoChanges()
 }
 
 func (e *EscalationReport) HostIPCEscalated() bool {
-	return e.HostIPC.Status == Escalated
+	return e.HostIPC.IsEscalated()
 }
 
 func (e *EscalationReport) HostIPCReduced() bool {
-	return e.HostIPC.Status == Reduced
+	return e.HostIPC.IsReduced()
 }
 
 func (e *EscalationReport) HostIPCNoChange() bool {
-	return e.HostIPC.Status == NoChange
+	return e.HostIPC.NoChanges()
 }
 
 func (e *EscalationReport) HostNetworkEscalated() bool {
-	return e.HostNetwork.Status == Escalated
+	return e.HostNetwork.IsEscalated()
 }
 
 func (e *EscalationReport) HostNetworkReduced() bool {
-	return e.HostNetwork.Status == Reduced
+	return e.HostNetwork.IsReduced()
 }
 
 func (e *EscalationReport) HostNetworkNoChange() bool {
-	return e.HostNetwork.Status == NoChange
+	return e.HostNetwork.NoChanges()
 }
 
 func (e *EscalationReport) HostPIDEscalated() bool {
-	return e.HostPID.Status == Escalated
+	return e.HostPID.IsEscalated()
 }
 
 func (e *EscalationReport) HostPIDReduced() bool {
-	return e.HostPID.Status == Reduced
+	return e.HostPID.IsReduced()
 }
 
 func (e *EscalationReport) HostPIDNoChange() bool {
-	return e.HostPID.Status == NoChange
+	return e.HostPID.NoChanges()
 }
 
 func (e *EscalationReport) ReadOnlyRootFSEscalated() bool {
-	return e.ReadOnlyRootFS.Status == Escalated
+	return e.ReadOnlyRootFS.IsEscalated()
 }
 
 func (e *EscalationReport) ReadOnlyRootFSReduced() bool {
-	return e.ReadOnlyRootFS.Status == Reduced
+	return e.ReadOnlyRootFS.IsReduced()
 }
 
 func (e *EscalationReport) ReadOnlyRootFSNoChange() bool {
-	return e.ReadOnlyRootFS.Status == NoChange
+	return e.ReadOnlyRootFS.NoChanges()
 }
 
 func (e *EscalationReport) RunAsUserStrategyEscalated() bool {
-	return e.RunAsUserStrategy == Escalated
+	return e.RunAsUserStrategy.IsEscalated()
 }
 
 func (e *EscalationReport) RunAsUserStrategyReduced() bool {
-	return e.RunAsUserStrategy == Reduced
+	return e.RunAsUserStrategy.IsReduced()
 }
 
 func (e *EscalationReport) RunAsUserStrategyNoChange() bool {
-	return e.RunAsUserStrategy == NoChange
+	return e.RunAsUserStrategy.NoChanges()
 }
 
 func (e *EscalationReport) RunAsGroupStrategyEscalated() bool {
-	return e.RunAsGroupStrategy == Escalated
+	return e.RunAsGroupStrategy.IsEscalated()
 }
 
 func (e *EscalationReport) RunAsGroupStrategyReduced() bool {
-	return e.RunAsGroupStrategy == Reduced
+	return e.RunAsGroupStrategy.IsReduced()
 }
 
 func (e *EscalationReport) RunAsGroupStrategyNoChange() bool {
-	return e.RunAsGroupStrategy == NoChange
+	return e.RunAsGroupStrategy.NoChanges()
 }
 
 func (e *EscalationReport) AddedVolumes() bool {
@@ -196,31 +215,31 @@ func (e *EscalationReport) Reduced() bool {
 }
 
 func (e *EscalationReport) NoChanges() bool {
-	if e.Privileged.Status != NoChange {
+	if !e.Privileged.NoChanges() {
 		return false
 	}
 
-	if e.HostIPC.Status != NoChange {
+	if !e.HostIPC.NoChanges() {
 		return false
 	}
 
-	if e.HostPID.Status != NoChange {
+	if !e.HostPID.NoChanges() {
 		return false
 	}
 
-	if e.HostNetwork.Status != NoChange {
+	if !e.HostNetwork.NoChanges() {
 		return false
 	}
 
-	if e.RunAsGroupStrategy != NoChange {
+	if !e.RunAsGroupStrategy.NoChanges() {
 		return false
 	}
 
-	if e.RunAsUserStrategy != NoChange {
+	if !e.RunAsUserStrategy.NoChanges() {
 		return false
 	}
 
-	if e.ReadOnlyRootFS.Status != NoChange {
+	if !e.ReadOnlyRootFS.NoChanges() {
 		return false
 	}
 
@@ -253,38 +272,30 @@ func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 *v1beta1.PodSecur
 
 	// privileged mode
 	if !spec1.Privileged && spec2.Privileged {
-		e.Privileged.Status = Escalated
-		e.Privileged.StatusMessage = GetEscalatedStatus(Escalated)
+		e.Privileged.SetEscalation(Escalated, "false", "true")
 	} else if spec1.Privileged && !spec2.Privileged {
-		e.Privileged.Status = Reduced
-		e.Privileged.StatusMessage = GetEscalatedStatus(Reduced)
+		e.Privileged.SetEscalation(Reduced, "true", "false")
 	}
 
 	// hostNetwork
 	if !spec1.HostNetwork && spec2.HostNetwork {
-		e.HostNetwork.Status = Escalated
-		e.HostNetwork.StatusMessage = GetEscalatedStatus(Escalated)
+		e.HostNetwork.SetEscalation(Escalated, "false", "true")
 	} else if spec1.HostNetwork && !spec2.HostNetwork {
-		e.HostNetwork.Status = Reduced
-		e.HostNetwork.StatusMessage = GetEscalatedStatus(Reduced)
+		e.HostNetwork.SetEscalation(Reduced, "true", "false")
 	}
 
 	// hostPID
 	if !spec1.HostPID && spec2.HostPID {
-		e.HostPID.Status = Escalated
-		e.HostPID.StatusMessage = GetEscalatedStatus(Escalated)
+		e.HostPID.SetEscalation(Escalated, "false", "true")
 	} else if spec1.HostPID && !spec2.HostPID {
-		e.HostPID.Status = Reduced
-		e.HostPID.StatusMessage = GetEscalatedStatus(Reduced)
+		e.HostPID.SetEscalation(Reduced, "true", "false")
 	}
 
 	// hostIPC
 	if !spec1.HostIPC && spec2.HostIPC {
-		e.HostIPC.Status = Escalated
-		e.HostIPC.StatusMessage = GetEscalatedStatus(Escalated)
+		e.HostIPC.SetEscalation(Escalated, "false", "true")
 	} else if spec1.HostIPC && !spec2.HostIPC {
-		e.HostIPC.Status = Reduced
-		e.HostIPC.StatusMessage = GetEscalatedStatus(Reduced)
+		e.HostIPC.SetEscalation(Reduced, "true", "false")
 	}
 
 	//TODO: host paths
@@ -430,25 +441,23 @@ func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 *v1beta1.PodSecur
 
 	// runAsUser
 	if spec1.RunAsUser.Rule != v1beta1.RunAsUserStrategyRunAsAny && spec2.RunAsUser.Rule == v1beta1.RunAsUserStrategyRunAsAny {
-		e.RunAsUserStrategy = Escalated
+		e.RunAsUserStrategy.SetEscalation(Escalated, string(spec1.RunAsUser.Rule), string(spec2.RunAsUser.Rule))
 	} else if spec1.RunAsUser.Rule == v1beta1.RunAsUserStrategyRunAsAny && spec2.RunAsUser.Rule != v1beta1.RunAsUserStrategyRunAsAny {
-		e.RunAsUserStrategy = Reduced
+		e.RunAsUserStrategy.SetEscalation(Reduced, string(spec1.RunAsUser.Rule), string(spec2.RunAsUser.Rule))
 	}
 
 	// runAsGroup
 	if (spec1.RunAsGroup != nil && spec1.RunAsGroup.Rule != v1beta1.RunAsGroupStrategyRunAsAny) && (spec2.RunAsGroup == nil || spec2.RunAsGroup.Rule == v1beta1.RunAsGroupStrategyRunAsAny) {
-		e.RunAsGroupStrategy = Escalated
+		e.RunAsGroupStrategy.SetEscalation(Escalated, string(spec1.RunAsGroup.Rule), string(v1beta1.RunAsGroupStrategyRunAsAny))
 	} else if (spec1.RunAsGroup == nil || spec1.RunAsGroup.Rule == v1beta1.RunAsGroupStrategyRunAsAny) && (spec2.RunAsGroup != nil && spec2.RunAsGroup.Rule != v1beta1.RunAsGroupStrategyRunAsAny) {
-		e.RunAsGroupStrategy = Reduced
+		e.RunAsGroupStrategy.SetEscalation(Reduced, string(v1beta1.RunAsGroupStrategyRunAsAny), string(spec2.RunAsGroup.Rule))
 	}
 
 	// readOnlyFS
 	if spec1.ReadOnlyRootFilesystem && !spec2.ReadOnlyRootFilesystem {
-		e.ReadOnlyRootFS.Status = Escalated
-		e.ReadOnlyRootFS.StatusMessage = GetEscalatedStatus(Escalated)
+		e.ReadOnlyRootFS.SetEscalation(Escalated, "true", "false")
 	} else if !spec1.ReadOnlyRootFilesystem && spec2.ReadOnlyRootFilesystem {
-		e.ReadOnlyRootFS.Status = Reduced
-		e.ReadOnlyRootFS.StatusMessage = GetEscalatedStatus(Reduced)
+		e.ReadOnlyRootFS.SetEscalation(Reduced, "false", "true")
 	}
 
 	if e.Escalated() {
@@ -574,18 +583,18 @@ func (e *EscalationReport) EnrichEscalationReport(srcCssList, targetCssList []Co
 	}
 
 	// ReadOnlyRootFS
-	if e.ReadOnlyRootFS.Status == Escalated {
+	if e.ReadOnlyRootFS.IsEscalated() {
 		for meta, targetCss := range targetCssMap {
-			srcCss, exits := srcCssMap[meta]
-			if !targetCss.ReadOnlyRootFS && (exits && srcCss.ReadOnlyRootFS) {
+			srcCss, exists := srcCssMap[meta]
+			if !targetCss.ReadOnlyRootFS && (!exists || srcCss.ReadOnlyRootFS) {
 				e.ReadOnlyRootFS.workloadMap[meta] = true
 			}
 		}
-	} else if e.ReadOnlyRootFS.Status == Reduced {
+	} else if e.ReadOnlyRootFS.IsReduced() {
 		for meta, srcCss := range srcCssMap {
 			targetCss, exists := targetCssMap[meta]
 
-			if !srcCss.ReadOnlyRootFS && (exists && targetCss.ReadOnlyRootFS) {
+			if !srcCss.ReadOnlyRootFS && (!exists || targetCss.ReadOnlyRootFS) {
 				e.ReadOnlyRootFS.workloadMap[meta] = true
 			}
 		}
@@ -593,6 +602,50 @@ func (e *EscalationReport) EnrichEscalationReport(srcCssList, targetCssList []Co
 
 	for w := range e.ReadOnlyRootFS.workloadMap {
 		e.ReadOnlyRootFS.Workloads = append(e.ReadOnlyRootFS.Workloads, w)
+	}
+
+	// runAsUer
+	if e.RunAsUserStrategy.IsEscalated() {
+		for meta, targetCss := range targetCssMap {
+			srcCss, exists := srcCssMap[meta]
+			if (targetCss.RunAsUser == nil || *targetCss.RunAsUser == 0) && (!exists || (srcCss.RunAsUser != nil && *srcCss.RunAsUser > 0)) {
+				e.RunAsUserStrategy.workloadMap[meta] = true
+			}
+		}
+	} else if e.RunAsUserStrategy.IsReduced() {
+		for meta, srcCss := range srcCssMap {
+			targetCss, exists := targetCssMap[meta]
+
+			if (srcCss.RunAsUser == nil || *srcCss.RunAsUser == 0) && (!exists || (targetCss.RunAsUser != nil && *targetCss.RunAsUser > 0)) {
+				e.RunAsUserStrategy.workloadMap[meta] = true
+			}
+		}
+	}
+
+	for w := range e.RunAsUserStrategy.workloadMap {
+		e.RunAsUserStrategy.Workloads = append(e.RunAsUserStrategy.Workloads, w)
+	}
+
+	// runAsGroup
+	if e.RunAsGroupStrategy.IsEscalated() {
+		for meta, targetCss := range targetCssMap {
+			srcCss, exists := srcCssMap[meta]
+			if (targetCss.RunAsGroup == nil || *targetCss.RunAsGroup == 0) && (!exists || (srcCss.RunAsGroup != nil && *srcCss.RunAsGroup > 0)) {
+				e.RunAsGroupStrategy.workloadMap[meta] = true
+			}
+		}
+	} else if e.RunAsGroupStrategy.IsReduced() {
+		for meta, srcCss := range srcCssMap {
+			targetCss, exists := targetCssMap[meta]
+
+			if (srcCss.RunAsGroup == nil || *srcCss.RunAsGroup == 0) && (!exists || (targetCss.RunAsGroup != nil && *targetCss.RunAsGroup > 0)) {
+				e.RunAsGroupStrategy.workloadMap[meta] = true
+			}
+		}
+	}
+
+	for w := range e.RunAsGroupStrategy.workloadMap {
+		e.RunAsGroupStrategy.Workloads = append(e.RunAsGroupStrategy.Workloads, w)
 	}
 
 }
