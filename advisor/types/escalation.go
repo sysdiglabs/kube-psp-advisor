@@ -24,8 +24,12 @@ const (
 )
 
 type EscalationReport struct {
-	OverallEscalation     bool                   `json:"escalation"`
-	OverallReduction      bool                   `json:"reduction"`
+	TotalSourceWorkloads  int                    `json:"total_source_workloads"`
+	TotalTargetWorkloads  int                    `json:"total_target_workloads"`
+	TotalEscalation       int                    `json:"escalation_count"`
+	TotalReduction        int                    `json:"reduction_count"`
+	Escalations           []Metadata             `json:"escalations"`
+	Reductions            []Metadata             `json:"reductions"`
 	NewPrivileged         *Escalation            `json:"new_privileged"`
 	RemovedPrivileged     *Escalation            `json:"removed_privileged"`
 	NewHostIPC            *Escalation            `json:"new_hostIPC"`
@@ -49,20 +53,19 @@ type EscalationReport struct {
 }
 
 type Escalation struct {
-	Status        int               `json:"status"`
-	StatusMessage string            `json:"status_message"`
+	Status        int               `json:"-"`
+	StatusMessage string            `json:"status"`
 	Previous      string            `json:"previous"`
 	Current       string            `json:"current"`
 	Workloads     []Metadata        `json:"workloads"`
+	WorkloadCount int               `json:"workloads_count"`
 	workloadMap   map[Metadata]bool `json:"-"`
-	srcPSP        string            `json:"-"`
-	targetPSP     string            `json:"-"`
 }
 
 func InitEscalation(status int, prev, cur string) *Escalation {
 	return &Escalation{
 		Status:        status,
-		StatusMessage: GetEscalatedStatus(status),
+		StatusMessage: getEscalatedStatus(status),
 		Previous:      prev,
 		Current:       cur,
 		Workloads:     []Metadata{},
@@ -72,30 +75,9 @@ func InitEscalation(status int, prev, cur string) *Escalation {
 
 func (e *Escalation) SetEscalation(status int, prev, cur string) {
 	e.Status = status
-	e.StatusMessage = GetEscalatedStatus(status)
+	e.StatusMessage = getEscalatedStatus(status)
 	e.Previous = prev
 	e.Current = cur
-}
-
-func (e *Escalation) SetPSPs(src, target string) {
-	e.SetSourcePSP(src)
-	e.SetTargetPSP(target)
-}
-
-func (e *Escalation) SetSourcePSP(psp string) {
-	e.srcPSP = psp
-}
-
-func (e *Escalation) SetTargetPSP(psp string) {
-	e.targetPSP = psp
-}
-
-func (e *Escalation) UsePSPs() bool {
-	if e.srcPSP != "" && e.targetPSP != "" {
-		return true
-	}
-
-	return false
 }
 
 func (e *Escalation) UseSecurityContext() bool {
@@ -110,22 +92,30 @@ func (e *Escalation) ConsolidateWorkload() {
 	for w := range e.workloadMap {
 		e.Workloads = append(e.Workloads, w)
 	}
+
+	e.WorkloadCount = len(e.Workloads)
 }
 
 func (e *Escalation) NoChanges() bool {
-	return !e.UsePSPs() && !e.UseSecurityContext()
+	return !e.UseSecurityContext()
 }
 
 func (e *Escalation) IsEscalated() bool {
-	return e.Status == Escalated && (e.UsePSPs() || e.UseSecurityContext())
+	return e.Status == Escalated && e.UseSecurityContext()
 }
 
 func (e *Escalation) IsReduced() bool {
-	return e.Status == Reduced && (e.UsePSPs() || e.UseSecurityContext())
+	return e.Status == Reduced && e.UseSecurityContext()
 }
 
 func NewEscalationReport() *EscalationReport {
 	return &EscalationReport{
+		TotalSourceWorkloads:  0,
+		TotalTargetWorkloads:  0,
+		TotalEscalation:       0,
+		TotalReduction:        0,
+		Escalations:           []Metadata{},
+		Reductions:            []Metadata{},
 		NewPrivileged:         InitEscalation(Escalated, "false", "true"),
 		RemovedPrivileged:     InitEscalation(Reduced, "true", "false"),
 		NewHostNetwork:        InitEscalation(Escalated, "false", "true"),
@@ -322,6 +312,9 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 	srcPssMap := map[Metadata]PodSecuritySpec{}
 	targetPssMap := map[Metadata]PodSecuritySpec{}
 
+	escalations := InitEscalation(Escalated, "", "")
+	reductions := InitEscalation(Reduced, "", "")
+
 	for _, css := range srcCssList {
 		srcCssMap[css.Metadata] = css
 	}
@@ -343,6 +336,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 		srcCss, exits := srcCssMap[meta]
 		if targetCss.Privileged && (!exits || !srcCss.Privileged) {
 			er.NewPrivileged.AddWorkload(meta)
+			escalations.AddWorkload(meta)
 		}
 	}
 	er.NewPrivileged.ConsolidateWorkload()
@@ -353,6 +347,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 
 		if srcCss.Privileged && (!exists || !targetCss.Privileged) {
 			er.RemovedPrivileged.AddWorkload(meta)
+			reductions.AddWorkload(meta)
 		}
 	}
 	er.RemovedPrivileged.ConsolidateWorkload()
@@ -362,6 +357,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 		srcPss, exits := srcPssMap[meta]
 		if targetPss.HostNetwork && (!exits || !srcPss.HostNetwork) {
 			er.NewHostNetwork.AddWorkload(meta)
+			escalations.AddWorkload(meta)
 		}
 	}
 	er.NewHostNetwork.ConsolidateWorkload()
@@ -372,6 +368,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 
 		if srcPss.HostNetwork && (!exists || !targetPss.HostNetwork) {
 			er.RemovedHostNetwork.AddWorkload(meta)
+			reductions.AddWorkload(meta)
 		}
 	}
 	er.RemovedHostNetwork.ConsolidateWorkload()
@@ -381,6 +378,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 		srcPss, exits := srcPssMap[meta]
 		if targetPss.HostIPC && (!exits || !srcPss.HostIPC) {
 			er.NewHostIPC.AddWorkload(meta)
+			escalations.AddWorkload(meta)
 		}
 	}
 	er.NewHostIPC.ConsolidateWorkload()
@@ -391,6 +389,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 
 		if srcPss.HostIPC && (!exists || !targetPss.HostIPC) {
 			er.RemovedHostIPC.AddWorkload(meta)
+			reductions.AddWorkload(meta)
 		}
 	}
 	er.RemovedHostIPC.ConsolidateWorkload()
@@ -400,6 +399,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 		srcPss, exits := srcPssMap[meta]
 		if targetPss.HostPID && (!exits || !srcPss.HostPID) {
 			er.NewHostPID.AddWorkload(meta)
+			escalations.AddWorkload(meta)
 		}
 	}
 	er.NewHostPID.ConsolidateWorkload()
@@ -410,6 +410,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 
 		if srcPss.HostPID && (!exists || !targetPss.HostPID) {
 			er.RemovedHostPID.AddWorkload(meta)
+			reductions.AddWorkload(meta)
 		}
 	}
 	er.RemovedHostPID.ConsolidateWorkload()
@@ -419,6 +420,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 		srcCss, exists := srcCssMap[meta]
 		if !targetCss.ReadOnlyRootFS && (!exists || srcCss.ReadOnlyRootFS) {
 			er.RemovedReadOnlyRootFS.AddWorkload(meta)
+			escalations.AddWorkload(meta)
 		}
 	}
 	er.RemovedReadOnlyRootFS.ConsolidateWorkload()
@@ -429,6 +431,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 
 		if !srcCss.ReadOnlyRootFS && (!exists || targetCss.ReadOnlyRootFS) {
 			er.NewReadOnlyRootFS.AddWorkload(meta)
+			reductions.AddWorkload(meta)
 		}
 	}
 	er.NewReadOnlyRootFS.ConsolidateWorkload()
@@ -438,6 +441,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 		srcCss, exists := srcCssMap[meta]
 		if (targetCss.RunAsUser == nil || *targetCss.RunAsUser == 0) && (!exists || (srcCss.RunAsUser != nil && *srcCss.RunAsUser > 0)) {
 			er.NewRunUserAsRoot.AddWorkload(meta)
+			escalations.AddWorkload(meta)
 		}
 	}
 	er.NewRunUserAsRoot.ConsolidateWorkload()
@@ -448,6 +452,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 
 		if (srcCss.RunAsUser == nil || *srcCss.RunAsUser == 0) && (!exists || (targetCss.RunAsUser != nil && *targetCss.RunAsUser > 0)) {
 			er.RemovedRunUserAsRoot.workloadMap[meta] = true
+			reductions.AddWorkload(meta)
 		}
 	}
 	er.RemovedRunUserAsRoot.ConsolidateWorkload()
@@ -457,6 +462,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 		srcCss, exists := srcCssMap[meta]
 		if (targetCss.RunAsGroup == nil || *targetCss.RunAsGroup == 0) && (!exists || (srcCss.RunAsGroup != nil && *srcCss.RunAsGroup > 0)) {
 			er.NewRunGroupAsRoot.AddWorkload(meta)
+			escalations.AddWorkload(meta)
 		}
 	}
 	er.NewRunGroupAsRoot.ConsolidateWorkload()
@@ -467,6 +473,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 
 		if (srcCss.RunAsGroup == nil || *srcCss.RunAsGroup == 0) && (!exists || (targetCss.RunAsGroup != nil && *targetCss.RunAsGroup > 0)) {
 			er.RemovedRunGroupAsRoot.AddWorkload(meta)
+			reductions.AddWorkload(meta)
 		}
 	}
 	er.RemovedRunGroupAsRoot.ConsolidateWorkload()
@@ -483,6 +490,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 					er.NewCapabilities[cap] = InitEscalation(Escalated, "", cap)
 				}
 				er.NewCapabilities[cap].AddWorkload(meta)
+				escalations.AddWorkload(meta)
 			}
 
 			for _, cap := range leftDiff {
@@ -491,6 +499,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 				}
 
 				er.RemovedCapabilities[cap].AddWorkload(meta)
+				reductions.AddWorkload(meta)
 			}
 		}
 	}
@@ -514,7 +523,8 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 				if _, volExists := er.NewVolumeTypes[vol]; !volExists {
 					er.NewVolumeTypes[vol] = InitEscalation(Escalated, "", vol)
 				}
-				er.NewCapabilities[vol].AddWorkload(meta)
+				er.NewVolumeTypes[vol].AddWorkload(meta)
+				escalations.AddWorkload(meta)
 			}
 
 			for _, vol := range leftDiff {
@@ -522,6 +532,7 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 					er.RemovedVolumeTypes[vol] = InitEscalation(Reduced, vol, "")
 				}
 				er.RemovedVolumeTypes[vol].AddWorkload(meta)
+				reductions.AddWorkload(meta)
 			}
 		}
 	}
@@ -534,16 +545,19 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 		e.ConsolidateWorkload()
 	}
 
-	if er.Escalated() {
-		er.OverallEscalation = true
-	}
+	escalations.ConsolidateWorkload()
+	reductions.ConsolidateWorkload()
 
-	if er.Reduced() {
-		er.OverallReduction = true
-	}
+	er.Escalations = append(er.Escalations, escalations.Workloads...)
+	er.Reductions = append(er.Reductions, reductions.Workloads...)
+
+	er.TotalEscalation = len(er.Escalations)
+	er.TotalReduction = len(er.Reductions)
+	er.TotalSourceWorkloads = len(srcPssMap)
+	er.TotalTargetWorkloads = len(targetPssMap)
 }
 
-func GetEscalatedStatus(status int) string {
+func getEscalatedStatus(status int) string {
 	return m[status]
 }
 
