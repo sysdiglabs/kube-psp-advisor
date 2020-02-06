@@ -81,7 +81,7 @@ func TestEscalationReportEscalated(t *testing.T) {
 
 	r := NewEscalationReport()
 
-	r.GenerateEscalationReport(pspRestricted, pspPrivileged)
+	r.GenerateEscalationReportFromPSPs(pspRestricted, pspPrivileged)
 
 	if !r.PrivilegeEscalated() {
 		t.Fatal("privilege should be escalated")
@@ -99,11 +99,11 @@ func TestEscalationReportEscalated(t *testing.T) {
 		t.Fatal("hostPID should be escalated")
 	}
 
-	if !r.RunAsUserStrategyEscalated() {
+	if !r.RunUserAsRootEscalated() {
 		t.Fatal("runAsUser should be escalated")
 	}
 
-	if !r.RunAsGroupStrategyEscalated() {
+	if !r.RunGroupAsRootEscalated() {
 		t.Fatal("runAsGroup should be escalated")
 	}
 
@@ -135,7 +135,7 @@ func TestEscalationReportReduced(t *testing.T) {
 
 	r := NewEscalationReport()
 
-	err = r.GenerateEscalationReport(pspPrivileged, pspRestricted)
+	err = r.GenerateEscalationReportFromPSPs(pspPrivileged, pspRestricted)
 
 	if err != nil {
 		t.Fatal(err)
@@ -157,11 +157,11 @@ func TestEscalationReportReduced(t *testing.T) {
 		t.Fatal("hostPID should be reduced")
 	}
 
-	if !r.RunAsUserStrategyReduced() {
+	if !r.RunUserAsRootReduced() {
 		t.Fatal("runAsUser should be reduced")
 	}
 
-	if !r.RunAsGroupStrategyReduced() {
+	if !r.RunGroupAsRootReduced() {
 		t.Fatal("runAsGroup should be reduced")
 	}
 

@@ -103,7 +103,7 @@ func TestCSS(t *testing.T) {
 		t.Fatal("psp should have SYS_ADMIN in capabilities")
 	}
 
-	if !psp.Spec.ReadOnlyRootFilesystem {
+	if psp.Spec.ReadOnlyRootFilesystem {
 		t.Fatal("psp should have readonlyrootsystem to false")
 	}
 

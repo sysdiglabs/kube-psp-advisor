@@ -139,15 +139,23 @@ func getHostPorts(containerPorts []corev1.ContainerPort) (hostPorts []int32) {
 
 func getEffectiveCapablities(add, drop []string) (effectiveCaps []string) {
 	dropCapMap := utils.ArrayToMap(drop)
+	addCapMap := utils.ArrayToMap(add)
 	defaultCaps := types.DefaultCaps
+	effectiveCapMap := map[string]bool{}
 
 	for _, cap := range defaultCaps {
 		if _, exists := dropCapMap[cap]; !exists {
-			effectiveCaps = append(effectiveCaps, cap)
+			effectiveCapMap[cap] = true
 		}
 	}
 
-	effectiveCaps = append(effectiveCaps, add...)
+	for cap := range addCapMap {
+		if _, exists := dropCapMap[cap]; !exists {
+			effectiveCapMap[cap] = true
+		}
+	}
+
+	effectiveCaps = utils.MapToArray(effectiveCapMap)
 
 	return
 }
@@ -229,14 +237,25 @@ func getCapabilities(sc *corev1.SecurityContext) (addList []string, dropList []s
 	addCaps := sc.Capabilities.Add
 	dropCaps := sc.Capabilities.Drop
 
+	addCapMap := map[string]bool{}
+	dropCapMap := map[string]bool{}
+
 	for _, cap := range addCaps {
-		addList = append(addList, string(cap))
+		addCapMap[string(cap)] = true
 	}
 
 	for _, cap := range dropCaps {
-		dropList = append(dropList, string(cap))
+		dropCapMap[string(cap)] = true
 	}
-	return
+
+	// delete cap if exists both in the drop list and add list
+	for cap := range addCapMap {
+		if _, exists := dropCapMap[cap]; exists {
+			delete(addCapMap, cap)
+			delete(dropCapMap, cap)
+		}
+	}
+	return utils.MapToArray(addCapMap), utils.MapToArray(dropCapMap)
 }
 
 func mountServiceAccountToken(spec corev1.PodSpec, sa corev1.ServiceAccount) bool {

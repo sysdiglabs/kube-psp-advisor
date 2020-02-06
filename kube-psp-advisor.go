@@ -87,7 +87,7 @@ func convertPsp(podObjFilename string, pspFilename string) error {
 	return nil
 }
 
-func comparePsp(srcDir, targetDir string, jsonFormat bool) error {
+func comparePsp(srcDir, targetDir string) error {
 	srcYamls, err := getWorkLoadYamls(srcDir)
 
 	if err != nil {
@@ -120,7 +120,7 @@ func comparePsp(srcDir, targetDir string, jsonFormat bool) error {
 
 	c.Compare()
 
-	c.PrintEscalationReport(jsonFormat)
+	c.PrintEscalationReport()
 
 	return nil
 }
@@ -136,7 +136,6 @@ func main() {
 	var logLevel string
 	var srcYamlDir string
 	var targetYamlDir string
-	var jsonFormat bool
 
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
@@ -207,7 +206,7 @@ func main() {
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			err := comparePsp(srcYamlDir, targetYamlDir, jsonFormat)
+			err := comparePsp(srcYamlDir, targetYamlDir)
 			if err != nil {
 				log.Fatalf("Could not run compare command: %v", err)
 			}
@@ -228,7 +227,6 @@ func main() {
 
 	compareCmd.Flags().StringVar(&srcYamlDir, "sourceDir", "", "Source YAML directory to generate PodSecurityPolicy")
 	compareCmd.Flags().StringVar(&targetYamlDir, "targetDir", "", "Target YAML directory to generate PodSecurityPolicy")
-	compareCmd.Flags().BoolVar(&jsonFormat, "json", false, "JSON output format")
 
 	rootCmd.AddCommand(inspectCmd)
 	rootCmd.AddCommand(convertCmd)

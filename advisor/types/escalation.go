@@ -1,10 +1,7 @@
 package types
 
 import (
-	"fmt"
-
 	"github.com/sysdiglabs/kube-psp-advisor/utils"
-	"k8s.io/api/policy/v1beta1"
 )
 
 const (
@@ -21,22 +18,34 @@ var (
 	}
 )
 
+const (
+	root    = "root"
+	nonRoot = "non-root"
+)
+
 type EscalationReport struct {
-	OverallEscalation   bool            `json:"escalation"`
-	OverallReduction    bool            `json:"reduction"`
-	Privileged          *Escalation     `json:"privileged"`
-	HostIPC             *Escalation     `json:"hostIPC"`
-	HostNetwork         *Escalation     `json:"hostNetwork"`
-	HostPID             *Escalation     `json:"hostPID"`
-	NewHostPaths        map[string]bool `json:"-"`
-	RemovedHostPaths    map[string]bool `json:"-"`
-	NewVolumeTypes      []string        `json:"new_volume_types"`
-	RemovedVolumeTypes  []string        `json:"removed_volume_types"`
-	NewCapabilities     []string        `json:"new_capabilities"`
-	RemovedCapabilities []string        `json:"reduced_capabilities"`
-	RunAsUserStrategy   *Escalation     `json:"run_as_user_strategy"`
-	RunAsGroupStrategy  *Escalation     `json:"run_as_group_strategy"`
-	ReadOnlyRootFS      *Escalation     `json:"read_only_root_fs"`
+	OverallEscalation     bool                   `json:"escalation"`
+	OverallReduction      bool                   `json:"reduction"`
+	NewPrivileged         *Escalation            `json:"new_privileged"`
+	RemovedPrivileged     *Escalation            `json:"removed_privileged"`
+	NewHostIPC            *Escalation            `json:"new_hostIPC"`
+	RemovedHostIPC        *Escalation            `json:"removed_hostIPC"`
+	NewHostNetwork        *Escalation            `json:"new_hostNetwork"`
+	RemovedHostNetwork    *Escalation            `json:"removed_hostNetwork"`
+	NewHostPID            *Escalation            `json:"new_hostPID"`
+	RemovedHostPID        *Escalation            `json:"removed_hostPID"`
+	NewHostPaths          map[string]bool        `json:"-"`
+	RemovedHostPaths      map[string]bool        `json:"-"`
+	NewVolumeTypes        map[string]*Escalation `json:"new_volume_types"`
+	RemovedVolumeTypes    map[string]*Escalation `json:"removed_volume_types"`
+	NewCapabilities       map[string]*Escalation `json:"new_capabilities"`
+	RemovedCapabilities   map[string]*Escalation `json:"reduced_capabilities"`
+	NewRunUserAsRoot      *Escalation            `json:"new_run_user_as_root"`
+	RemovedRunUserAsRoot  *Escalation            `json:"removed_run_user_as_root"`
+	NewRunGroupAsRoot     *Escalation            `json:"new_run_group_as_root"`
+	RemovedRunGroupAsRoot *Escalation            `json:"removed_run_group_as_root"`
+	NewReadOnlyRootFS     *Escalation            `json:"new_read_only_root_fs"`
+	RemovedReadOnlyRootFS *Escalation            `json:"removed_read_only_root_fs"`
 }
 
 type Escalation struct {
@@ -46,14 +55,16 @@ type Escalation struct {
 	Current       string            `json:"current"`
 	Workloads     []Metadata        `json:"workloads"`
 	workloadMap   map[Metadata]bool `json:"-"`
+	srcPSP        string            `json:"-"`
+	targetPSP     string            `json:"-"`
 }
 
-func InitEscalation() *Escalation {
+func InitEscalation(status int, prev, cur string) *Escalation {
 	return &Escalation{
-		Status:        NoChange,
-		StatusMessage: GetEscalatedStatus(NoChange),
-		Previous:      "",
-		Current:       "",
+		Status:        status,
+		StatusMessage: GetEscalatedStatus(status),
+		Previous:      prev,
+		Current:       cur,
 		Workloads:     []Metadata{},
 		workloadMap:   map[Metadata]bool{},
 	}
@@ -66,412 +77,245 @@ func (e *Escalation) SetEscalation(status int, prev, cur string) {
 	e.Current = cur
 }
 
-func (e *Escalation) IsEscalated() bool {
-	return e.Status == Escalated
+func (e *Escalation) SetPSPs(src, target string) {
+	e.SetSourcePSP(src)
+	e.SetTargetPSP(target)
 }
 
-func (e *Escalation) IsReduced() bool {
-	return e.Status == Reduced
+func (e *Escalation) SetSourcePSP(psp string) {
+	e.srcPSP = psp
+}
+
+func (e *Escalation) SetTargetPSP(psp string) {
+	e.targetPSP = psp
+}
+
+func (e *Escalation) UsePSPs() bool {
+	if e.srcPSP != "" && e.targetPSP != "" {
+		return true
+	}
+
+	return false
+}
+
+func (e *Escalation) UseSecurityContext() bool {
+	return len(e.Workloads) > 0
+}
+
+func (e *Escalation) AddWorkload(w Metadata) {
+	e.workloadMap[w] = true
+}
+
+func (e *Escalation) ConsolidateWorkload() {
+	for w := range e.workloadMap {
+		e.Workloads = append(e.Workloads, w)
+	}
 }
 
 func (e *Escalation) NoChanges() bool {
-	return e.Status == NoChange
+	return !e.UsePSPs() && !e.UseSecurityContext()
+}
+
+func (e *Escalation) IsEscalated() bool {
+	return e.Status == Escalated && (e.UsePSPs() || e.UseSecurityContext())
+}
+
+func (e *Escalation) IsReduced() bool {
+	return e.Status == Reduced && (e.UsePSPs() || e.UseSecurityContext())
 }
 
 func NewEscalationReport() *EscalationReport {
 	return &EscalationReport{
-		Privileged:          InitEscalation(),
-		HostNetwork:         InitEscalation(),
-		HostIPC:             InitEscalation(),
-		HostPID:             InitEscalation(),
-		NewHostPaths:        map[string]bool{},
-		NewCapabilities:     []string{},
-		NewVolumeTypes:      []string{},
-		RemovedCapabilities: []string{},
-		RemovedHostPaths:    map[string]bool{},
-		RemovedVolumeTypes:  []string{},
-		RunAsGroupStrategy:  InitEscalation(),
-		RunAsUserStrategy:   InitEscalation(),
-		ReadOnlyRootFS:      InitEscalation(),
+		NewPrivileged:         InitEscalation(Escalated, "false", "true"),
+		RemovedPrivileged:     InitEscalation(Reduced, "true", "false"),
+		NewHostNetwork:        InitEscalation(Escalated, "false", "true"),
+		RemovedHostNetwork:    InitEscalation(Reduced, "true", "false"),
+		NewHostIPC:            InitEscalation(Escalated, "false", "true"),
+		RemovedHostIPC:        InitEscalation(Reduced, "true", "false"),
+		NewHostPID:            InitEscalation(Escalated, "false", "true"),
+		RemovedHostPID:        InitEscalation(Reduced, "true", "false"),
+		NewHostPaths:          map[string]bool{},
+		RemovedHostPaths:      map[string]bool{},
+		NewCapabilities:       map[string]*Escalation{},
+		RemovedCapabilities:   map[string]*Escalation{},
+		NewVolumeTypes:        map[string]*Escalation{},
+		RemovedVolumeTypes:    map[string]*Escalation{},
+		NewRunGroupAsRoot:     InitEscalation(Escalated, nonRoot, root),
+		RemovedRunGroupAsRoot: InitEscalation(Reduced, root, nonRoot),
+		NewRunUserAsRoot:      InitEscalation(Escalated, nonRoot, root),
+		RemovedRunUserAsRoot:  InitEscalation(Reduced, root, nonRoot),
+		NewReadOnlyRootFS:     InitEscalation(Reduced, "false", "true"),
+		RemovedReadOnlyRootFS: InitEscalation(Escalated, "true", "false"),
 	}
 }
 
-func (e *EscalationReport) PrivilegeEscalated() bool {
-	return e.Privileged.IsEscalated()
+func (er *EscalationReport) PrivilegeEscalated() bool {
+	return er.NewPrivileged.IsEscalated()
 }
 
-func (e *EscalationReport) PrivilegeReduced() bool {
-	return e.Privileged.IsReduced()
+func (er *EscalationReport) PrivilegeReduced() bool {
+	return er.RemovedPrivileged.IsReduced()
 }
 
-func (e *EscalationReport) PrivilegeNoChange() bool {
-	return e.Privileged.NoChanges()
+func (er *EscalationReport) PrivilegeNoChange() bool {
+	return !er.PrivilegeReduced() && !er.PrivilegeReduced()
 }
 
-func (e *EscalationReport) HostIPCEscalated() bool {
-	return e.HostIPC.IsEscalated()
+func (er *EscalationReport) HostIPCEscalated() bool {
+	return er.NewHostIPC.IsEscalated()
 }
 
-func (e *EscalationReport) HostIPCReduced() bool {
-	return e.HostIPC.IsReduced()
+func (er *EscalationReport) HostIPCReduced() bool {
+	return er.RemovedHostIPC.IsReduced()
 }
 
-func (e *EscalationReport) HostIPCNoChange() bool {
-	return e.HostIPC.NoChanges()
+func (er *EscalationReport) HostIPCNoChange() bool {
+	return !er.HostIPCEscalated() && !er.HostIPCReduced()
 }
 
-func (e *EscalationReport) HostNetworkEscalated() bool {
-	return e.HostNetwork.IsEscalated()
+func (er *EscalationReport) HostNetworkEscalated() bool {
+	return er.NewHostNetwork.IsEscalated()
 }
 
-func (e *EscalationReport) HostNetworkReduced() bool {
-	return e.HostNetwork.IsReduced()
+func (er *EscalationReport) HostNetworkReduced() bool {
+	return er.RemovedHostNetwork.IsReduced()
 }
 
-func (e *EscalationReport) HostNetworkNoChange() bool {
-	return e.HostNetwork.NoChanges()
+func (er *EscalationReport) HostNetworkNoChange() bool {
+	return !er.HostNetworkEscalated() && !er.HostNetworkReduced()
 }
 
-func (e *EscalationReport) HostPIDEscalated() bool {
-	return e.HostPID.IsEscalated()
+func (er *EscalationReport) HostPIDEscalated() bool {
+	return er.NewHostPID.IsEscalated()
 }
 
-func (e *EscalationReport) HostPIDReduced() bool {
-	return e.HostPID.IsReduced()
+func (er *EscalationReport) HostPIDReduced() bool {
+	return er.RemovedHostPID.IsReduced()
 }
 
-func (e *EscalationReport) HostPIDNoChange() bool {
-	return e.HostPID.NoChanges()
+func (er *EscalationReport) HostPIDNoChange() bool {
+	return !er.HostPIDEscalated() && !er.HostPIDReduced()
 }
 
-func (e *EscalationReport) ReadOnlyRootFSEscalated() bool {
-	return e.ReadOnlyRootFS.IsEscalated()
+func (er *EscalationReport) ReadOnlyRootFSEscalated() bool {
+	return er.RemovedReadOnlyRootFS.IsEscalated()
 }
 
-func (e *EscalationReport) ReadOnlyRootFSReduced() bool {
-	return e.ReadOnlyRootFS.IsReduced()
+func (er *EscalationReport) ReadOnlyRootFSReduced() bool {
+	return er.NewReadOnlyRootFS.IsReduced()
 }
 
-func (e *EscalationReport) ReadOnlyRootFSNoChange() bool {
-	return e.ReadOnlyRootFS.NoChanges()
+func (er *EscalationReport) ReadOnlyRootFSNoChange() bool {
+	return !er.ReadOnlyRootFSEscalated() && !er.ReadOnlyRootFSReduced()
 }
 
-func (e *EscalationReport) RunAsUserStrategyEscalated() bool {
-	return e.RunAsUserStrategy.IsEscalated()
+func (er *EscalationReport) RunUserAsRootEscalated() bool {
+	return er.NewRunUserAsRoot.IsEscalated()
 }
 
-func (e *EscalationReport) RunAsUserStrategyReduced() bool {
-	return e.RunAsUserStrategy.IsReduced()
+func (er *EscalationReport) RunUserAsRootReduced() bool {
+	return er.RemovedRunUserAsRoot.IsReduced()
 }
 
-func (e *EscalationReport) RunAsUserStrategyNoChange() bool {
-	return e.RunAsUserStrategy.NoChanges()
+func (er *EscalationReport) RunUserAsRootNoChange() bool {
+	return !er.RunUserAsRootEscalated() && !er.RunUserAsRootReduced()
 }
 
-func (e *EscalationReport) RunAsGroupStrategyEscalated() bool {
-	return e.RunAsGroupStrategy.IsEscalated()
+func (er *EscalationReport) RunGroupAsRootEscalated() bool {
+	return er.NewRunGroupAsRoot.IsEscalated()
 }
 
-func (e *EscalationReport) RunAsGroupStrategyReduced() bool {
-	return e.RunAsGroupStrategy.IsReduced()
+func (er *EscalationReport) RunGroupAsRootReduced() bool {
+	return er.RemovedRunGroupAsRoot.IsReduced()
 }
 
-func (e *EscalationReport) RunAsGroupStrategyNoChange() bool {
-	return e.RunAsGroupStrategy.NoChanges()
+func (er *EscalationReport) RunGroupAsRootNoChange() bool {
+	return er.NewRunGroupAsRoot.NoChanges()
 }
 
-func (e *EscalationReport) AddedVolumes() bool {
-	return len(e.NewVolumeTypes) > 0
+func (er *EscalationReport) AddedVolumes() bool {
+	return len(er.NewVolumeTypes) > 0
 }
 
-func (e *EscalationReport) RemovedVolumes() bool {
-	return len(e.RemovedVolumeTypes) > 0
+func (er *EscalationReport) RemovedVolumes() bool {
+	return len(er.RemovedVolumeTypes) > 0
 }
 
-func (e *EscalationReport) AddedCapabilities() bool {
-	return len(e.NewCapabilities) > 0
+func (er *EscalationReport) AddedCapabilities() bool {
+	return len(er.NewCapabilities) > 0
 }
 
-func (e *EscalationReport) DroppedCapabilities() bool {
-	return len(e.RemovedCapabilities) > 0
+func (er *EscalationReport) DroppedCapabilities() bool {
+	return len(er.RemovedCapabilities) > 0
 }
 
-func (e *EscalationReport) Escalated() bool {
-	if e.PrivilegeEscalated() || e.HostNetworkEscalated() || e.HostPIDEscalated() || e.HostIPCEscalated() || e.AddedVolumes() ||
-		e.AddedCapabilities() || e.ReadOnlyRootFSEscalated() || e.RunAsGroupStrategyEscalated() || e.RunAsUserStrategyEscalated() {
+func (er *EscalationReport) Escalated() bool {
+	if er.PrivilegeEscalated() || er.HostNetworkEscalated() || er.HostPIDEscalated() || er.HostIPCEscalated() || er.AddedVolumes() ||
+		er.AddedCapabilities() || er.ReadOnlyRootFSEscalated() || er.RunGroupAsRootEscalated() || er.RunUserAsRootEscalated() {
 		return true
 	}
 
 	return false
 }
 
-func (e *EscalationReport) Reduced() bool {
-	if e.PrivilegeReduced() || e.HostNetworkReduced() || e.HostPIDReduced() || e.HostIPCReduced() || e.RemovedVolumes() ||
-		e.DroppedCapabilities() || e.ReadOnlyRootFSReduced() || e.RunAsGroupStrategyReduced() || e.RunAsUserStrategyReduced() {
+func (er *EscalationReport) Reduced() bool {
+	if er.PrivilegeReduced() || er.HostNetworkReduced() || er.HostPIDReduced() || er.HostIPCReduced() || er.RemovedVolumes() ||
+		er.DroppedCapabilities() || er.ReadOnlyRootFSReduced() || er.RunGroupAsRootReduced() || er.RunUserAsRootReduced() {
 		return true
 	}
 
 	return false
 }
 
-func (e *EscalationReport) NoChanges() bool {
-	if !e.Privileged.NoChanges() {
+func (er *EscalationReport) NoChanges() bool {
+	if !er.NewPrivileged.NoChanges() {
 		return false
 	}
 
-	if !e.HostIPC.NoChanges() {
+	if !er.NewHostIPC.NoChanges() {
 		return false
 	}
 
-	if !e.HostPID.NoChanges() {
+	if !er.NewHostPID.NoChanges() {
 		return false
 	}
 
-	if !e.HostNetwork.NoChanges() {
+	if !er.NewHostNetwork.NoChanges() {
 		return false
 	}
 
-	if !e.RunAsGroupStrategy.NoChanges() {
+	if !er.NewRunGroupAsRoot.NoChanges() {
 		return false
 	}
 
-	if !e.RunAsUserStrategy.NoChanges() {
+	if !er.NewRunUserAsRoot.NoChanges() {
 		return false
 	}
 
-	if !e.ReadOnlyRootFS.NoChanges() {
+	if !er.NewReadOnlyRootFS.NoChanges() {
 		return false
 	}
 
-	if len(e.RemovedCapabilities) > 0 {
+	if len(er.RemovedCapabilities) > 0 {
 		return false
 	}
 
-	if len(e.NewCapabilities) > 0 {
+	if len(er.NewCapabilities) > 0 {
 		return false
 	}
 
-	if len(e.RemovedVolumeTypes) > 0 {
+	if len(er.RemovedVolumeTypes) > 0 {
 		return false
 	}
 
-	if len(e.NewVolumeTypes) > 0 {
+	if len(er.NewVolumeTypes) > 0 {
 		return false
 	}
 
 	return true
 }
 
-func (e *EscalationReport) GenerateEscalationReport(psp1, psp2 *v1beta1.PodSecurityPolicy) error {
-	if psp1 == nil || psp2 == nil {
-		return fmt.Errorf("psp is empty")
-	}
-
-	spec1 := psp1.Spec
-	spec2 := psp2.Spec
-
-	// privileged mode
-	if !spec1.Privileged && spec2.Privileged {
-		e.Privileged.SetEscalation(Escalated, "false", "true")
-	} else if spec1.Privileged && !spec2.Privileged {
-		e.Privileged.SetEscalation(Reduced, "true", "false")
-	}
-
-	// hostNetwork
-	if !spec1.HostNetwork && spec2.HostNetwork {
-		e.HostNetwork.SetEscalation(Escalated, "false", "true")
-	} else if spec1.HostNetwork && !spec2.HostNetwork {
-		e.HostNetwork.SetEscalation(Reduced, "true", "false")
-	}
-
-	// hostPID
-	if !spec1.HostPID && spec2.HostPID {
-		e.HostPID.SetEscalation(Escalated, "false", "true")
-	} else if spec1.HostPID && !spec2.HostPID {
-		e.HostPID.SetEscalation(Reduced, "true", "false")
-	}
-
-	// hostIPC
-	if !spec1.HostIPC && spec2.HostIPC {
-		e.HostIPC.SetEscalation(Escalated, "false", "true")
-	} else if spec1.HostIPC && !spec2.HostIPC {
-		e.HostIPC.SetEscalation(Reduced, "true", "false")
-	}
-
-	//TODO: host paths
-
-	// mounted volumes
-	volMap1 := map[string]bool{}
-	volMap2 := map[string]bool{}
-
-	for _, v := range spec1.Volumes {
-		volMap1[string(v)] = true
-	}
-
-	for _, v := range spec2.Volumes {
-		volMap2[string(v)] = true
-	}
-
-	_, anyVolExists1 := volMap1["*"]
-	_, anyVolExists2 := volMap2["*"]
-
-	if anyVolExists1 && !anyVolExists2 {
-		e.RemovedVolumeTypes = append(e.RemovedVolumeTypes, "*")
-	}
-
-	if !anyVolExists1 && anyVolExists2 {
-		e.NewVolumeTypes = append(e.NewVolumeTypes, "*")
-	}
-
-	if !anyVolExists1 && !anyVolExists2 {
-		for v1 := range volMap1 {
-			if _, exists := volMap2[v1]; !exists {
-				e.RemovedVolumeTypes = append(e.RemovedVolumeTypes, v1)
-			}
-		}
-
-		for v2 := range volMap2 {
-			if _, exists := volMap1[v2]; !exists {
-				e.NewVolumeTypes = append(e.NewVolumeTypes, v2)
-			}
-		}
-	}
-
-	// capabilities
-	addCapMap1 := map[string]bool{}
-	addCapMap2 := map[string]bool{}
-	allowCapMap1 := map[string]bool{}
-	allowCapMap2 := map[string]bool{}
-	dropCapMap1 := map[string]bool{}
-	dropCapMap2 := map[string]bool{}
-
-	newCapMap := map[string]bool{}
-	removedCapMap := map[string]bool{}
-
-	for _, cap := range spec1.DefaultAddCapabilities {
-		addCapMap1[string(cap)] = true
-	}
-
-	for _, cap := range spec1.RequiredDropCapabilities {
-		dropCapMap1[string(cap)] = true
-	}
-
-	for _, cap := range spec1.AllowedCapabilities {
-		allowCapMap1[string(cap)] = true
-	}
-
-	for _, cap := range spec2.DefaultAddCapabilities {
-		addCapMap2[string(cap)] = true
-	}
-
-	for _, cap := range spec2.RequiredDropCapabilities {
-		dropCapMap2[string(cap)] = true
-	}
-
-	for _, cap := range spec2.AllowedCapabilities {
-		allowCapMap2[string(cap)] = true
-	}
-
-	_, anyAddCapExists1 := addCapMap1["*"]
-	_, anyAddCapExists2 := addCapMap1["*"]
-
-	if anyAddCapExists1 && !anyAddCapExists2 {
-		removedCapMap["*"] = true
-	}
-
-	if !anyAddCapExists1 && anyAddCapExists2 {
-		newCapMap["*"] = true
-	}
-
-	_, anyAllowCapExists1 := allowCapMap1["*"]
-	_, anyAllowCapExists2 := allowCapMap2["*"]
-
-	if anyAllowCapExists1 && !anyAllowCapExists2 {
-		removedCapMap["*"] = true
-	}
-
-	if !anyAllowCapExists1 && anyAllowCapExists2 {
-		newCapMap["*"] = true
-	}
-
-	// drop * cap doesnt make sense here
-
-	if !anyAddCapExists1 && !anyAddCapExists2 {
-		for cap1 := range addCapMap1 {
-			if _, exists := addCapMap2[cap1]; !exists {
-				removedCapMap[cap1] = true
-			}
-		}
-
-		for cap2 := range addCapMap2 {
-			if _, exists := addCapMap1[cap2]; !exists {
-				newCapMap[cap2] = true
-			}
-		}
-	}
-
-	if !anyAllowCapExists1 && !anyAllowCapExists2 {
-		for cap1 := range allowCapMap1 {
-			if _, exists := allowCapMap2[cap1]; !exists {
-				removedCapMap[cap1] = true
-			}
-		}
-
-		for cap2 := range allowCapMap2 {
-			if _, exists := allowCapMap1[cap2]; !exists {
-				newCapMap[cap2] = true
-			}
-		}
-	}
-
-	for cap1 := range dropCapMap1 {
-		if _, exists := dropCapMap2[cap1]; !exists {
-			newCapMap[cap1] = true
-		}
-	}
-
-	for cap2 := range dropCapMap2 {
-		if _, exists := dropCapMap1[cap2]; !exists {
-			removedCapMap[cap2] = true
-		}
-	}
-
-	e.NewCapabilities = utils.MapToArray(newCapMap)
-	e.RemovedCapabilities = utils.MapToArray(removedCapMap)
-
-	// runAsUser
-	if spec1.RunAsUser.Rule != v1beta1.RunAsUserStrategyRunAsAny && spec2.RunAsUser.Rule == v1beta1.RunAsUserStrategyRunAsAny {
-		e.RunAsUserStrategy.SetEscalation(Escalated, string(spec1.RunAsUser.Rule), string(spec2.RunAsUser.Rule))
-	} else if spec1.RunAsUser.Rule == v1beta1.RunAsUserStrategyRunAsAny && spec2.RunAsUser.Rule != v1beta1.RunAsUserStrategyRunAsAny {
-		e.RunAsUserStrategy.SetEscalation(Reduced, string(spec1.RunAsUser.Rule), string(spec2.RunAsUser.Rule))
-	}
-
-	// runAsGroup
-	if (spec1.RunAsGroup != nil && spec1.RunAsGroup.Rule != v1beta1.RunAsGroupStrategyRunAsAny) && (spec2.RunAsGroup == nil || spec2.RunAsGroup.Rule == v1beta1.RunAsGroupStrategyRunAsAny) {
-		e.RunAsGroupStrategy.SetEscalation(Escalated, string(spec1.RunAsGroup.Rule), string(v1beta1.RunAsGroupStrategyRunAsAny))
-	} else if (spec1.RunAsGroup == nil || spec1.RunAsGroup.Rule == v1beta1.RunAsGroupStrategyRunAsAny) && (spec2.RunAsGroup != nil && spec2.RunAsGroup.Rule != v1beta1.RunAsGroupStrategyRunAsAny) {
-		e.RunAsGroupStrategy.SetEscalation(Reduced, string(v1beta1.RunAsGroupStrategyRunAsAny), string(spec2.RunAsGroup.Rule))
-	}
-
-	// readOnlyFS
-	if spec1.ReadOnlyRootFilesystem && !spec2.ReadOnlyRootFilesystem {
-		e.ReadOnlyRootFS.SetEscalation(Escalated, "true", "false")
-	} else if !spec1.ReadOnlyRootFilesystem && spec2.ReadOnlyRootFilesystem {
-		e.ReadOnlyRootFS.SetEscalation(Reduced, "false", "true")
-	}
-
-	if e.Escalated() {
-		e.OverallEscalation = true
-	}
-
-	if e.Reduced() {
-		e.OverallReduction = true
-	}
-
-	return nil
-}
-
-func (e *EscalationReport) EnrichEscalationReport(srcCssList, targetCssList []ContainerSecuritySpec, srcPssList, targetPssList []PodSecuritySpec) {
+func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssList, targetCssList []ContainerSecuritySpec, srcPssList, targetPssList []PodSecuritySpec) {
 	srcCssMap := map[Metadata]ContainerSecuritySpec{}
 	targetCssMap := map[Metadata]ContainerSecuritySpec{}
 
@@ -494,162 +338,224 @@ func (e *EscalationReport) EnrichEscalationReport(srcCssList, targetCssList []Co
 		targetPssMap[pss.Metadata] = pss
 	}
 
-	// privileged
-	if e.Privileged.Status == Escalated {
-		for meta, targetCss := range targetCssMap {
-			srcCss, exits := srcCssMap[meta]
-			if targetCss.Privileged && (!exits || !srcCss.Privileged) {
-				e.Privileged.workloadMap[meta] = true
-			}
+	// privileged - false to true (escalated)
+	for meta, targetCss := range targetCssMap {
+		srcCss, exits := srcCssMap[meta]
+		if targetCss.Privileged && (!exits || !srcCss.Privileged) {
+			er.NewPrivileged.AddWorkload(meta)
 		}
-	} else if e.Privileged.Status == Reduced {
-		for meta, srcCss := range srcCssMap {
-			targetCss, exists := targetCssMap[meta]
+	}
+	er.NewPrivileged.ConsolidateWorkload()
 
-			if srcCss.Privileged && (!exists || !targetCss.Privileged) {
-				e.Privileged.workloadMap[meta] = true
+	// privileged - true to false (reduced)
+	for meta, srcCss := range srcCssMap {
+		targetCss, exists := targetCssMap[meta]
+
+		if srcCss.Privileged && (!exists || !targetCss.Privileged) {
+			er.RemovedPrivileged.AddWorkload(meta)
+		}
+	}
+	er.RemovedPrivileged.ConsolidateWorkload()
+
+	// hostNetwork - false to true (escalated)
+	for meta, targetPss := range targetPssMap {
+		srcPss, exits := srcPssMap[meta]
+		if targetPss.HostNetwork && (!exits || !srcPss.HostNetwork) {
+			er.NewHostNetwork.AddWorkload(meta)
+		}
+	}
+	er.NewHostNetwork.ConsolidateWorkload()
+
+	// hostNetwork - true to false (reduced)
+	for meta, srcPss := range srcPssMap {
+		targetPss, exists := targetPssMap[meta]
+
+		if srcPss.HostNetwork && (!exists || !targetPss.HostNetwork) {
+			er.RemovedHostNetwork.AddWorkload(meta)
+		}
+	}
+	er.RemovedHostNetwork.ConsolidateWorkload()
+
+	// hostIPC - false to true (escalated)
+	for meta, targetPss := range targetPssMap {
+		srcPss, exits := srcPssMap[meta]
+		if targetPss.HostIPC && (!exits || !srcPss.HostIPC) {
+			er.NewHostIPC.AddWorkload(meta)
+		}
+	}
+	er.NewHostIPC.ConsolidateWorkload()
+
+	// hostIPC - true to false (reduced)
+	for meta, srcPss := range srcPssMap {
+		targetPss, exists := targetPssMap[meta]
+
+		if srcPss.HostIPC && (!exists || !targetPss.HostIPC) {
+			er.RemovedHostIPC.AddWorkload(meta)
+		}
+	}
+	er.RemovedHostIPC.ConsolidateWorkload()
+
+	// hostPID - false to true (escalated)
+	for meta, targetPss := range targetPssMap {
+		srcPss, exits := srcPssMap[meta]
+		if targetPss.HostPID && (!exits || !srcPss.HostPID) {
+			er.NewHostPID.AddWorkload(meta)
+		}
+	}
+	er.NewHostPID.ConsolidateWorkload()
+
+	// hostPID - true to false (reduced)
+	for meta, srcPss := range srcPssMap {
+		targetPss, exists := targetPssMap[meta]
+
+		if srcPss.HostPID && (!exists || !targetPss.HostPID) {
+			er.RemovedHostPID.AddWorkload(meta)
+		}
+	}
+	er.RemovedHostPID.ConsolidateWorkload()
+
+	// readOnlyRootFS - true to false (escalated)
+	for meta, targetCss := range targetCssMap {
+		srcCss, exists := srcCssMap[meta]
+		if !targetCss.ReadOnlyRootFS && (!exists || srcCss.ReadOnlyRootFS) {
+			er.RemovedReadOnlyRootFS.AddWorkload(meta)
+		}
+	}
+	er.RemovedReadOnlyRootFS.ConsolidateWorkload()
+
+	// readOnlyRootFS - false to true (reduced)
+	for meta, srcCss := range srcCssMap {
+		targetCss, exists := targetCssMap[meta]
+
+		if !srcCss.ReadOnlyRootFS && (!exists || targetCss.ReadOnlyRootFS) {
+			er.NewReadOnlyRootFS.AddWorkload(meta)
+		}
+	}
+	er.NewReadOnlyRootFS.ConsolidateWorkload()
+
+	// runAsUer - non root to root (escalated)
+	for meta, targetCss := range targetCssMap {
+		srcCss, exists := srcCssMap[meta]
+		if (targetCss.RunAsUser == nil || *targetCss.RunAsUser == 0) && (!exists || (srcCss.RunAsUser != nil && *srcCss.RunAsUser > 0)) {
+			er.NewRunUserAsRoot.AddWorkload(meta)
+		}
+	}
+	er.NewRunUserAsRoot.ConsolidateWorkload()
+
+	// runAsUer - root to non root (reduced)
+	for meta, srcCss := range srcCssMap {
+		targetCss, exists := targetCssMap[meta]
+
+		if (srcCss.RunAsUser == nil || *srcCss.RunAsUser == 0) && (!exists || (targetCss.RunAsUser != nil && *targetCss.RunAsUser > 0)) {
+			er.RemovedRunUserAsRoot.workloadMap[meta] = true
+		}
+	}
+	er.RemovedRunUserAsRoot.ConsolidateWorkload()
+
+	// runAsGroup - non root to root (escalated)
+	for meta, targetCss := range targetCssMap {
+		srcCss, exists := srcCssMap[meta]
+		if (targetCss.RunAsGroup == nil || *targetCss.RunAsGroup == 0) && (!exists || (srcCss.RunAsGroup != nil && *srcCss.RunAsGroup > 0)) {
+			er.NewRunGroupAsRoot.AddWorkload(meta)
+		}
+	}
+	er.NewRunGroupAsRoot.ConsolidateWorkload()
+
+	// runAsGroup - root to non root (reduced)
+	for meta, srcCss := range srcCssMap {
+		targetCss, exists := targetCssMap[meta]
+
+		if (srcCss.RunAsGroup == nil || *srcCss.RunAsGroup == 0) && (!exists || (targetCss.RunAsGroup != nil && *targetCss.RunAsGroup > 0)) {
+			er.RemovedRunGroupAsRoot.AddWorkload(meta)
+		}
+	}
+	er.RemovedRunGroupAsRoot.ConsolidateWorkload()
+
+	// caps
+	for meta, targetCss := range targetCssMap {
+		srcCss, exists := srcCssMap[meta]
+
+		if exists {
+			leftDiff, rightDiff := diff(srcCss.Capabilities, targetCss.Capabilities)
+
+			for _, cap := range rightDiff {
+				if _, capExists := er.NewCapabilities[cap]; !capExists {
+					er.NewCapabilities[cap] = InitEscalation(Escalated, "", cap)
+				}
+				er.NewCapabilities[cap].AddWorkload(meta)
+			}
+
+			for _, cap := range leftDiff {
+				if _, capExists := er.RemovedCapabilities[cap]; !capExists {
+					er.RemovedCapabilities[cap] = InitEscalation(Reduced, cap, "")
+				}
+
+				er.RemovedCapabilities[cap].AddWorkload(meta)
 			}
 		}
 	}
 
-	for w := range e.Privileged.workloadMap {
-		e.Privileged.Workloads = append(e.Privileged.Workloads, w)
+	for _, e := range er.NewCapabilities {
+		e.ConsolidateWorkload()
 	}
 
-	// hostNetwork
-	if e.HostNetwork.Status == Escalated {
-		for meta, targetPss := range targetPssMap {
-			srcPss, exits := srcPssMap[meta]
-			if targetPss.HostNetwork && (!exits || !srcPss.HostNetwork) {
-				e.HostNetwork.workloadMap[meta] = true
-			}
-		}
-	} else if e.HostNetwork.Status == Reduced {
-		for meta, srcPss := range srcPssMap {
-			targetPss, exists := targetPssMap[meta]
-
-			if srcPss.HostNetwork && (!exists || !targetPss.HostNetwork) {
-				e.HostNetwork.workloadMap[meta] = true
-			}
-		}
+	for _, e := range er.RemovedCapabilities {
+		e.ConsolidateWorkload()
 	}
 
-	for w := range e.HostNetwork.workloadMap {
-		e.HostNetwork.Workloads = append(e.HostNetwork.Workloads, w)
-	}
+	// volume types (configMap, secret, emptryDir etc.)
+	for meta, targetPss := range targetPssMap {
+		srcPss, exists := srcPssMap[meta]
 
-	// HostIPC
-	if e.HostIPC.Status == Escalated {
-		for meta, targetPss := range targetPssMap {
-			srcPss, exits := srcPssMap[meta]
-			if targetPss.HostIPC && (!exits || !srcPss.HostIPC) {
-				e.HostIPC.workloadMap[meta] = true
+		if exists {
+			leftDiff, rightDiff := diff(srcPss.VolumeTypes, targetPss.VolumeTypes)
+
+			for _, vol := range rightDiff {
+				if _, volExists := er.NewVolumeTypes[vol]; !volExists {
+					er.NewVolumeTypes[vol] = InitEscalation(Escalated, "", vol)
+				}
+				er.NewCapabilities[vol].AddWorkload(meta)
 			}
-		}
-	} else if e.HostIPC.Status == Reduced {
-		for meta, srcPss := range srcPssMap {
-			targetPss, exists := targetPssMap[meta]
 
-			if srcPss.HostIPC && (!exists || !targetPss.HostIPC) {
-				e.HostIPC.workloadMap[meta] = true
+			for _, vol := range leftDiff {
+				if _, volExists := er.RemovedVolumeTypes[vol]; !volExists {
+					er.RemovedVolumeTypes[vol] = InitEscalation(Reduced, vol, "")
+				}
+				er.RemovedVolumeTypes[vol].AddWorkload(meta)
 			}
 		}
 	}
 
-	for w := range e.HostIPC.workloadMap {
-		e.HostIPC.Workloads = append(e.HostIPC.Workloads, w)
+	for _, e := range er.NewVolumeTypes {
+		e.ConsolidateWorkload()
 	}
 
-	// HostPID
-	if e.HostPID.Status == Escalated {
-		for meta, targetPss := range targetPssMap {
-			srcPss, exits := srcPssMap[meta]
-			if targetPss.HostPID && (!exits || !srcPss.HostPID) {
-				e.HostPID.workloadMap[meta] = true
-			}
-		}
-	} else if e.HostPID.Status == Reduced {
-		for meta, srcPss := range srcPssMap {
-			targetPss, exists := targetPssMap[meta]
-
-			if srcPss.HostPID && (!exists || !targetPss.HostPID) {
-				e.HostPID.workloadMap[meta] = true
-			}
-		}
+	for _, e := range er.RemovedVolumeTypes {
+		e.ConsolidateWorkload()
 	}
 
-	for w := range e.HostPID.workloadMap {
-		e.HostPID.Workloads = append(e.HostPID.Workloads, w)
+	if er.Escalated() {
+		er.OverallEscalation = true
 	}
 
-	// ReadOnlyRootFS
-	if e.ReadOnlyRootFS.IsEscalated() {
-		for meta, targetCss := range targetCssMap {
-			srcCss, exists := srcCssMap[meta]
-			if !targetCss.ReadOnlyRootFS && (!exists || srcCss.ReadOnlyRootFS) {
-				e.ReadOnlyRootFS.workloadMap[meta] = true
-			}
-		}
-	} else if e.ReadOnlyRootFS.IsReduced() {
-		for meta, srcCss := range srcCssMap {
-			targetCss, exists := targetCssMap[meta]
-
-			if !srcCss.ReadOnlyRootFS && (!exists || targetCss.ReadOnlyRootFS) {
-				e.ReadOnlyRootFS.workloadMap[meta] = true
-			}
-		}
+	if er.Reduced() {
+		er.OverallReduction = true
 	}
-
-	for w := range e.ReadOnlyRootFS.workloadMap {
-		e.ReadOnlyRootFS.Workloads = append(e.ReadOnlyRootFS.Workloads, w)
-	}
-
-	// runAsUer
-	if e.RunAsUserStrategy.IsEscalated() {
-		for meta, targetCss := range targetCssMap {
-			srcCss, exists := srcCssMap[meta]
-			if (targetCss.RunAsUser == nil || *targetCss.RunAsUser == 0) && (!exists || (srcCss.RunAsUser != nil && *srcCss.RunAsUser > 0)) {
-				e.RunAsUserStrategy.workloadMap[meta] = true
-			}
-		}
-	} else if e.RunAsUserStrategy.IsReduced() {
-		for meta, srcCss := range srcCssMap {
-			targetCss, exists := targetCssMap[meta]
-
-			if (srcCss.RunAsUser == nil || *srcCss.RunAsUser == 0) && (!exists || (targetCss.RunAsUser != nil && *targetCss.RunAsUser > 0)) {
-				e.RunAsUserStrategy.workloadMap[meta] = true
-			}
-		}
-	}
-
-	for w := range e.RunAsUserStrategy.workloadMap {
-		e.RunAsUserStrategy.Workloads = append(e.RunAsUserStrategy.Workloads, w)
-	}
-
-	// runAsGroup
-	if e.RunAsGroupStrategy.IsEscalated() {
-		for meta, targetCss := range targetCssMap {
-			srcCss, exists := srcCssMap[meta]
-			if (targetCss.RunAsGroup == nil || *targetCss.RunAsGroup == 0) && (!exists || (srcCss.RunAsGroup != nil && *srcCss.RunAsGroup > 0)) {
-				e.RunAsGroupStrategy.workloadMap[meta] = true
-			}
-		}
-	} else if e.RunAsGroupStrategy.IsReduced() {
-		for meta, srcCss := range srcCssMap {
-			targetCss, exists := targetCssMap[meta]
-
-			if (srcCss.RunAsGroup == nil || *srcCss.RunAsGroup == 0) && (!exists || (targetCss.RunAsGroup != nil && *targetCss.RunAsGroup > 0)) {
-				e.RunAsGroupStrategy.workloadMap[meta] = true
-			}
-		}
-	}
-
-	for w := range e.RunAsGroupStrategy.workloadMap {
-		e.RunAsGroupStrategy.Workloads = append(e.RunAsGroupStrategy.Workloads, w)
-	}
-
 }
 
 func GetEscalatedStatus(status int) string {
 	return m[status]
+}
+
+func diff(left, right []string) (leftDiff, rightDiff []string) {
+	leftMap := utils.ArrayToMap(left)
+	rightMap := utils.ArrayToMap(right)
+	for cap := range leftMap {
+		if _, exists := rightMap[cap]; exists {
+			delete(leftMap, cap)
+			delete(rightMap, cap)
+		}
+	}
+
+	return utils.MapToArray(leftMap), utils.MapToArray(rightMap)
 }
