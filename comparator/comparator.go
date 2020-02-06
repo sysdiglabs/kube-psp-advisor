@@ -3,7 +3,6 @@ package comparator
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/sysdiglabs/kube-psp-advisor/generator"
 
@@ -24,6 +23,7 @@ type Comparator struct {
 	targetPssList    []types.PodSecuritySpec
 }
 
+// NewComparator returns a new comparator object
 func NewComparator() (*Comparator, error) {
 	gen, err := generator.NewGenerator()
 
@@ -41,9 +41,10 @@ func NewComparator() (*Comparator, error) {
 	}, nil
 }
 
-func (c *Comparator) LoadYamls(yamls []string, dir string) error {
-	if dir != Source && dir != Target {
-		return fmt.Errorf("invalid directory type: %s (expected 'Source' or 'Target')", dir)
+// LoadYamls loads yamls from files
+func (c *Comparator) LoadYamls(yamls []string, dirType string) error {
+	if dirType != Source && dirType != Target {
+		return fmt.Errorf("invalid directory type: %s (expected 'Source' or 'Target')", dirType)
 	}
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
@@ -59,7 +60,7 @@ func (c *Comparator) LoadYamls(yamls []string, dir string) error {
 		}
 	}
 
-	if dir == Source {
+	if dirType == Source {
 		c.srcCssList = cssList
 		c.srcPssList = pssList
 	} else {
@@ -70,14 +71,12 @@ func (c *Comparator) LoadYamls(yamls []string, dir string) error {
 	return nil
 }
 
-func (c *Comparator) Compare() bool {
+// Compare compares security contexts between the source YAMLs and target YAMLs
+func (c *Comparator) Compare() {
 	c.escalationReport.GenerateEscalationReportFromSecurityContext(c.srcCssList, c.targetCssList, c.srcPssList, c.targetPssList)
-	log.Printf("%+v\n", c.srcCssList)
-	log.Printf("%+v\n", c.targetCssList)
-
-	return c.escalationReport.NoChanges()
 }
 
+// Clear clears everything in the comparator
 func (c *Comparator) Clear() {
 	c.srcCssList = []types.ContainerSecuritySpec{}
 	c.targetCssList = []types.ContainerSecuritySpec{}
@@ -87,6 +86,7 @@ func (c *Comparator) Clear() {
 	c.escalationReport = types.NewEscalationReport()
 }
 
+// PrintEscalationReport prints escalation report to STDOUT
 func (c *Comparator) PrintEscalationReport() {
 	data, _ := json.Marshal(c.escalationReport)
 

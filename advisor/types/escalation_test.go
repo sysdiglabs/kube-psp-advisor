@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"testing"
 
 	"k8s.io/api/policy/v1beta1"
 
@@ -57,14 +56,6 @@ spec:
     rule: 'RunAsAny'
 `
 )
-
-func TestNoChanges(t *testing.T) {
-	r := NewEscalationReport()
-
-	if !r.NoChanges() {
-		t.Fatal("new report should not contain an changes.")
-	}
-}
 
 func readPSPYaml(pspInput string) (*v1beta1.PodSecurityPolicy, error) {
 	var psp v1beta1.PodSecurityPolicy

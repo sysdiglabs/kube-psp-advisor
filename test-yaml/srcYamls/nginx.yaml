@@ -1,0 +1,19 @@
+# add comment
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  containers:
+  - name: nginx
+    image: kaizheh/nginx 
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true 
+      runAsUser: 100
+      runAsGroup: 1000

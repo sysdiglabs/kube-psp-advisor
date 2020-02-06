@@ -26,6 +26,8 @@ const (
 type EscalationReport struct {
 	TotalSourceWorkloads  int                    `json:"total_source_workloads"`
 	TotalTargetWorkloads  int                    `json:"total_target_workloads"`
+	TotalSourceImages     int                    `json:"total_source_images"`
+	TotalTargetImages     int                    `json:"total_target_images"`
 	TotalEscalation       int                    `json:"escalation_count"`
 	TotalReduction        int                    `json:"reduction_count"`
 	Escalations           []Metadata             `json:"escalations"`
@@ -62,6 +64,7 @@ type Escalation struct {
 	workloadMap   map[Metadata]bool `json:"-"`
 }
 
+// InitEscalation returns an initialized escalation object
 func InitEscalation(status int, prev, cur string) *Escalation {
 	return &Escalation{
 		Status:        status,
@@ -73,6 +76,7 @@ func InitEscalation(status int, prev, cur string) *Escalation {
 	}
 }
 
+// SetEscalation set escalation status
 func (e *Escalation) SetEscalation(status int, prev, cur string) {
 	e.Status = status
 	e.StatusMessage = getEscalatedStatus(status)
@@ -86,6 +90,21 @@ func (e *Escalation) UseSecurityContext() bool {
 
 func (e *Escalation) AddWorkload(w Metadata) {
 	e.workloadMap[w] = true
+}
+
+func (e *Escalation) ConsolidateWorkloadImage() {
+	m := map[Metadata]bool{}
+
+	for w := range e.workloadMap {
+		w.Image = ""
+		m[w] = true
+	}
+
+	for w := range m {
+		e.Workloads = append(e.Workloads, w)
+	}
+
+	e.WorkloadCount = len(e.Workloads)
 }
 
 func (e *Escalation) ConsolidateWorkload() {
@@ -108,6 +127,7 @@ func (e *Escalation) IsReduced() bool {
 	return e.Status == Reduced && e.UseSecurityContext()
 }
 
+// NewEscalationReport returns an escalation report object
 func NewEscalationReport() *EscalationReport {
 	return &EscalationReport{
 		TotalSourceWorkloads:  0,
@@ -139,108 +159,133 @@ func NewEscalationReport() *EscalationReport {
 	}
 }
 
-func (er *EscalationReport) PrivilegeEscalated() bool {
+// privileged mode
+func (er *EscalationReport) PrivilegedEscalated() bool {
 	return er.NewPrivileged.IsEscalated()
 }
 
-func (er *EscalationReport) PrivilegeReduced() bool {
+// privileged mode
+func (er *EscalationReport) PrivilegedReduced() bool {
 	return er.RemovedPrivileged.IsReduced()
 }
 
-func (er *EscalationReport) PrivilegeNoChange() bool {
-	return !er.PrivilegeReduced() && !er.PrivilegeReduced()
+// privileged mode
+func (er *EscalationReport) PrivilegedNoChange() bool {
+	return !er.PrivilegedReduced() && !er.PrivilegedReduced()
 }
 
+// HostIPC
 func (er *EscalationReport) HostIPCEscalated() bool {
 	return er.NewHostIPC.IsEscalated()
 }
 
+// HostIPC
 func (er *EscalationReport) HostIPCReduced() bool {
 	return er.RemovedHostIPC.IsReduced()
 }
 
+// HostIPC
 func (er *EscalationReport) HostIPCNoChange() bool {
 	return !er.HostIPCEscalated() && !er.HostIPCReduced()
 }
 
+// HostNetwork
 func (er *EscalationReport) HostNetworkEscalated() bool {
 	return er.NewHostNetwork.IsEscalated()
 }
 
+// HostNetwork
 func (er *EscalationReport) HostNetworkReduced() bool {
 	return er.RemovedHostNetwork.IsReduced()
 }
 
+// HostNetwork
 func (er *EscalationReport) HostNetworkNoChange() bool {
 	return !er.HostNetworkEscalated() && !er.HostNetworkReduced()
 }
 
+// HostPID
 func (er *EscalationReport) HostPIDEscalated() bool {
 	return er.NewHostPID.IsEscalated()
 }
 
+// HostPID
 func (er *EscalationReport) HostPIDReduced() bool {
 	return er.RemovedHostPID.IsReduced()
 }
 
+// HostPID
 func (er *EscalationReport) HostPIDNoChange() bool {
 	return !er.HostPIDEscalated() && !er.HostPIDReduced()
 }
 
+// ReadOnlyRootFileSystem
 func (er *EscalationReport) ReadOnlyRootFSEscalated() bool {
 	return er.RemovedReadOnlyRootFS.IsEscalated()
 }
 
+// ReadOnlyRootFileSystem
 func (er *EscalationReport) ReadOnlyRootFSReduced() bool {
 	return er.NewReadOnlyRootFS.IsReduced()
 }
 
+// ReadOnlyRootFileSystem
 func (er *EscalationReport) ReadOnlyRootFSNoChange() bool {
 	return !er.ReadOnlyRootFSEscalated() && !er.ReadOnlyRootFSReduced()
 }
 
+// runAsUser (non root -> root)
 func (er *EscalationReport) RunUserAsRootEscalated() bool {
 	return er.NewRunUserAsRoot.IsEscalated()
 }
 
+// runAsUser (root -> non root)
 func (er *EscalationReport) RunUserAsRootReduced() bool {
 	return er.RemovedRunUserAsRoot.IsReduced()
 }
 
+// runAsUser
 func (er *EscalationReport) RunUserAsRootNoChange() bool {
 	return !er.RunUserAsRootEscalated() && !er.RunUserAsRootReduced()
 }
 
+// runAsGroup (non root -> root)
 func (er *EscalationReport) RunGroupAsRootEscalated() bool {
 	return er.NewRunGroupAsRoot.IsEscalated()
 }
 
+// runAsGroup (root -> non root)
 func (er *EscalationReport) RunGroupAsRootReduced() bool {
 	return er.RemovedRunGroupAsRoot.IsReduced()
 }
 
+// runAsGroup
 func (er *EscalationReport) RunGroupAsRootNoChange() bool {
 	return er.NewRunGroupAsRoot.NoChanges()
 }
 
+// newly added volume types
 func (er *EscalationReport) AddedVolumes() bool {
 	return len(er.NewVolumeTypes) > 0
 }
 
+// removed volume types
 func (er *EscalationReport) RemovedVolumes() bool {
 	return len(er.RemovedVolumeTypes) > 0
 }
 
+// added capabilities
 func (er *EscalationReport) AddedCapabilities() bool {
 	return len(er.NewCapabilities) > 0
 }
 
+// dropped capabilities
 func (er *EscalationReport) DroppedCapabilities() bool {
 	return len(er.RemovedCapabilities) > 0
 }
 
 func (er *EscalationReport) Escalated() bool {
-	if er.PrivilegeEscalated() || er.HostNetworkEscalated() || er.HostPIDEscalated() || er.HostIPCEscalated() || er.AddedVolumes() ||
+	if er.PrivilegedEscalated() || er.HostNetworkEscalated() || er.HostPIDEscalated() || er.HostIPCEscalated() || er.AddedVolumes() ||
 		er.AddedCapabilities() || er.ReadOnlyRootFSEscalated() || er.RunGroupAsRootEscalated() || er.RunUserAsRootEscalated() {
 		return true
 	}
@@ -249,7 +294,7 @@ func (er *EscalationReport) Escalated() bool {
 }
 
 func (er *EscalationReport) Reduced() bool {
-	if er.PrivilegeReduced() || er.HostNetworkReduced() || er.HostPIDReduced() || er.HostIPCReduced() || er.RemovedVolumes() ||
+	if er.PrivilegedReduced() || er.HostNetworkReduced() || er.HostPIDReduced() || er.HostIPCReduced() || er.RemovedVolumes() ||
 		er.DroppedCapabilities() || er.ReadOnlyRootFSReduced() || er.RunGroupAsRootReduced() || er.RunUserAsRootReduced() {
 		return true
 	}
@@ -257,79 +302,16 @@ func (er *EscalationReport) Reduced() bool {
 	return false
 }
 
-func (er *EscalationReport) NoChanges() bool {
-	if !er.NewPrivileged.NoChanges() {
-		return false
-	}
-
-	if !er.NewHostIPC.NoChanges() {
-		return false
-	}
-
-	if !er.NewHostPID.NoChanges() {
-		return false
-	}
-
-	if !er.NewHostNetwork.NoChanges() {
-		return false
-	}
-
-	if !er.NewRunGroupAsRoot.NoChanges() {
-		return false
-	}
-
-	if !er.NewRunUserAsRoot.NoChanges() {
-		return false
-	}
-
-	if !er.NewReadOnlyRootFS.NoChanges() {
-		return false
-	}
-
-	if len(er.RemovedCapabilities) > 0 {
-		return false
-	}
-
-	if len(er.NewCapabilities) > 0 {
-		return false
-	}
-
-	if len(er.RemovedVolumeTypes) > 0 {
-		return false
-	}
-
-	if len(er.NewVolumeTypes) > 0 {
-		return false
-	}
-
-	return true
-}
-
+// GenerateEscalationReportFromSecurityContext returns a escalation report after comparing the source and target YAML files
 func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssList, targetCssList []ContainerSecuritySpec, srcPssList, targetPssList []PodSecuritySpec) {
-	srcCssMap := map[Metadata]ContainerSecuritySpec{}
-	targetCssMap := map[Metadata]ContainerSecuritySpec{}
+	srcCssMap := NewContainerSecuritySpecMap(srcCssList)
+	targetCssMap := NewContainerSecuritySpecMap(targetCssList)
 
-	srcPssMap := map[Metadata]PodSecuritySpec{}
-	targetPssMap := map[Metadata]PodSecuritySpec{}
+	srcPssMap := NewPodSecuritySpecMap(srcPssList)
+	targetPssMap := NewPodSecuritySpecMap(targetPssList)
 
 	escalations := InitEscalation(Escalated, "", "")
 	reductions := InitEscalation(Reduced, "", "")
-
-	for _, css := range srcCssList {
-		srcCssMap[css.Metadata] = css
-	}
-
-	for _, css := range targetCssList {
-		targetCssMap[css.Metadata] = css
-	}
-
-	for _, pss := range srcPssList {
-		srcPssMap[pss.Metadata] = pss
-	}
-
-	for _, pss := range targetPssList {
-		targetPssMap[pss.Metadata] = pss
-	}
 
 	// privileged - false to true (escalated)
 	for meta, targetCss := range targetCssMap {
@@ -545,8 +527,8 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 		e.ConsolidateWorkload()
 	}
 
-	escalations.ConsolidateWorkload()
-	reductions.ConsolidateWorkload()
+	escalations.ConsolidateWorkloadImage()
+	reductions.ConsolidateWorkloadImage()
 
 	er.Escalations = append(er.Escalations, escalations.Workloads...)
 	er.Reductions = append(er.Reductions, reductions.Workloads...)
@@ -555,6 +537,8 @@ func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssLi
 	er.TotalReduction = len(er.Reductions)
 	er.TotalSourceWorkloads = len(srcPssMap)
 	er.TotalTargetWorkloads = len(targetPssMap)
+	er.TotalSourceImages = len(srcCssMap)
+	er.TotalTargetImages = len(targetCssMap)
 }
 
 func getEscalatedStatus(status int) string {

@@ -1,0 +1,25 @@
+# add comment
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  hostNetwork: true
+  hostIPC: true
+  hostPID: true
+  containers:
+  - name: nginx
+    image: kaizheh/nginx 
+    securityContext:
+      privileged: true
+      readOnlyRootFilesystem: false
+    volumeMounts:
+    - name: tmp
+      mountPath: /var/tmp
+  volumes:
+  - name: tmp
+    hostPath:
+      path: /tmp
+      type: Directory

@@ -16,7 +16,6 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
-	github.com/olekukonko/tablewriter v0.0.4
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.5
 	golang.org/x/net v0.0.0-20190812203447-cdfb69ac37fc // indirect
@@ -24,7 +23,7 @@ require (
 	golang.org/x/sys v0.0.0-20190616124812-15dcb6c0061f // indirect
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0 // indirect
-	golang.org/x/tools v0.0.0-20200205195138-aa017ee80473 // indirect
+	golang.org/x/tools v0.0.0-20200206204726-37215997d4fb // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/inf.v0 v0.9.0 // indirect
 	gopkg.in/yaml.v2 v2.2.4 // indirect

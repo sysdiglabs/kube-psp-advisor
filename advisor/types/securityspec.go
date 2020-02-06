@@ -1,7 +1,5 @@
 package types
 
-import "github.com/sysdiglabs/kube-psp-advisor/utils"
-
 var (
 	DefaultCaps = []string{
 		"SETPCAP",
@@ -77,13 +75,30 @@ type Metadata struct {
 	Name      string `json:"name"`
 	Kind      string `json:"kind"`
 	Namespace string `json:"namespace"`
-	YamlFile  string `json:"file"`
+	YamlFile  string `json:"file,omitempty"`
+	Image     string `json:"image,omitempty"`
 }
 
-func (css ContainerSecuritySpec) ContainCapability(cap string) bool {
-	m := utils.ArrayToMap(css.Capabilities)
+type PodSecuritySpecMap map[Metadata]PodSecuritySpec
 
-	_, exsits := m[cap]
+func NewPodSecuritySpecMap(pssList []PodSecuritySpec) PodSecuritySpecMap {
+	pssMap := PodSecuritySpecMap{}
 
-	return exsits
+	for _, pss := range pssList {
+		pssMap[pss.Metadata] = pss
+	}
+
+	return pssMap
+}
+
+type ContainerSecuritySpecMap map[Metadata]ContainerSecuritySpec
+
+func NewContainerSecuritySpecMap(cssList []ContainerSecuritySpec) ContainerSecuritySpecMap {
+	cssMap := ContainerSecuritySpecMap{}
+	for _, css := range cssList {
+		css.Metadata.Image = css.ImageName
+		cssMap[css.Metadata] = css
+	}
+
+	return cssMap
 }

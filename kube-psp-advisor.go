@@ -193,8 +193,8 @@ func main() {
 
 	var compareCmd = &cobra.Command{
 		Use:   "compare",
-		Short: "Compare PodSecurityPolicys generated from yaml files",
-		Long:  "Compare PodSecurityPolicys generated from yaml files and generate privilege escalation report",
+		Short: "Compare k8s workload YAML files",
+		Long:  "Compare k8s workload YAML files and generate privilege escalation report",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			if srcYamlDir == "" {
 				log.Fatalf("--srcDir must be provided")
@@ -225,8 +225,8 @@ func main() {
 	convertCmd.Flags().StringVar(&podObjFilename, "podFile", "", "Path to a yaml file containing an object with a pod Spec")
 	convertCmd.Flags().StringVar(&pspFilename, "pspFile", "", "Write the resulting PSP to this file")
 
-	compareCmd.Flags().StringVar(&srcYamlDir, "sourceDir", "", "Source YAML directory to generate PodSecurityPolicy")
-	compareCmd.Flags().StringVar(&targetYamlDir, "targetDir", "", "Target YAML directory to generate PodSecurityPolicy")
+	compareCmd.Flags().StringVar(&srcYamlDir, "sourceDir", "", "Source YAML directory to load YAMLs")
+	compareCmd.Flags().StringVar(&targetYamlDir, "targetDir", "", "Target YAML directory to load YAMLs")
 
 	rootCmd.AddCommand(inspectCmd)
 	rootCmd.AddCommand(convertCmd)
