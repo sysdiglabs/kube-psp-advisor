@@ -23,7 +23,7 @@ const (
 	nonRoot = "non-root"
 )
 
-type EscalationReport struct {
+type LintReport struct {
 	TotalSourceWorkloads  int                    `json:"total_source_workloads"`
 	TotalTargetWorkloads  int                    `json:"total_target_workloads"`
 	TotalSourceImages     int                    `json:"total_source_images"`
@@ -128,8 +128,8 @@ func (e *Escalation) IsReduced() bool {
 }
 
 // NewEscalationReport returns an escalation report object
-func NewEscalationReport() *EscalationReport {
-	return &EscalationReport{
+func NewEscalationReport() *LintReport {
+	return &LintReport{
 		TotalSourceWorkloads:  0,
 		TotalTargetWorkloads:  0,
 		TotalEscalation:       0,
@@ -160,131 +160,131 @@ func NewEscalationReport() *EscalationReport {
 }
 
 // privileged mode
-func (er *EscalationReport) PrivilegedEscalated() bool {
+func (er *LintReport) PrivilegedEscalated() bool {
 	return er.NewPrivileged.IsEscalated()
 }
 
 // privileged mode
-func (er *EscalationReport) PrivilegedReduced() bool {
+func (er *LintReport) PrivilegedReduced() bool {
 	return er.RemovedPrivileged.IsReduced()
 }
 
 // privileged mode
-func (er *EscalationReport) PrivilegedNoChange() bool {
+func (er *LintReport) PrivilegedNoChange() bool {
 	return !er.PrivilegedReduced() && !er.PrivilegedReduced()
 }
 
 // HostIPC
-func (er *EscalationReport) HostIPCEscalated() bool {
+func (er *LintReport) HostIPCEscalated() bool {
 	return er.NewHostIPC.IsEscalated()
 }
 
 // HostIPC
-func (er *EscalationReport) HostIPCReduced() bool {
+func (er *LintReport) HostIPCReduced() bool {
 	return er.RemovedHostIPC.IsReduced()
 }
 
 // HostIPC
-func (er *EscalationReport) HostIPCNoChange() bool {
+func (er *LintReport) HostIPCNoChange() bool {
 	return !er.HostIPCEscalated() && !er.HostIPCReduced()
 }
 
 // HostNetwork
-func (er *EscalationReport) HostNetworkEscalated() bool {
+func (er *LintReport) HostNetworkEscalated() bool {
 	return er.NewHostNetwork.IsEscalated()
 }
 
 // HostNetwork
-func (er *EscalationReport) HostNetworkReduced() bool {
+func (er *LintReport) HostNetworkReduced() bool {
 	return er.RemovedHostNetwork.IsReduced()
 }
 
 // HostNetwork
-func (er *EscalationReport) HostNetworkNoChange() bool {
+func (er *LintReport) HostNetworkNoChange() bool {
 	return !er.HostNetworkEscalated() && !er.HostNetworkReduced()
 }
 
 // HostPID
-func (er *EscalationReport) HostPIDEscalated() bool {
+func (er *LintReport) HostPIDEscalated() bool {
 	return er.NewHostPID.IsEscalated()
 }
 
 // HostPID
-func (er *EscalationReport) HostPIDReduced() bool {
+func (er *LintReport) HostPIDReduced() bool {
 	return er.RemovedHostPID.IsReduced()
 }
 
 // HostPID
-func (er *EscalationReport) HostPIDNoChange() bool {
+func (er *LintReport) HostPIDNoChange() bool {
 	return !er.HostPIDEscalated() && !er.HostPIDReduced()
 }
 
 // ReadOnlyRootFileSystem
-func (er *EscalationReport) ReadOnlyRootFSEscalated() bool {
+func (er *LintReport) ReadOnlyRootFSEscalated() bool {
 	return er.RemovedReadOnlyRootFS.IsEscalated()
 }
 
 // ReadOnlyRootFileSystem
-func (er *EscalationReport) ReadOnlyRootFSReduced() bool {
+func (er *LintReport) ReadOnlyRootFSReduced() bool {
 	return er.NewReadOnlyRootFS.IsReduced()
 }
 
 // ReadOnlyRootFileSystem
-func (er *EscalationReport) ReadOnlyRootFSNoChange() bool {
+func (er *LintReport) ReadOnlyRootFSNoChange() bool {
 	return !er.ReadOnlyRootFSEscalated() && !er.ReadOnlyRootFSReduced()
 }
 
 // runAsUser (non root -> root)
-func (er *EscalationReport) RunUserAsRootEscalated() bool {
+func (er *LintReport) RunUserAsRootEscalated() bool {
 	return er.NewRunUserAsRoot.IsEscalated()
 }
 
 // runAsUser (root -> non root)
-func (er *EscalationReport) RunUserAsRootReduced() bool {
+func (er *LintReport) RunUserAsRootReduced() bool {
 	return er.RemovedRunUserAsRoot.IsReduced()
 }
 
 // runAsUser
-func (er *EscalationReport) RunUserAsRootNoChange() bool {
+func (er *LintReport) RunUserAsRootNoChange() bool {
 	return !er.RunUserAsRootEscalated() && !er.RunUserAsRootReduced()
 }
 
 // runAsGroup (non root -> root)
-func (er *EscalationReport) RunGroupAsRootEscalated() bool {
+func (er *LintReport) RunGroupAsRootEscalated() bool {
 	return er.NewRunGroupAsRoot.IsEscalated()
 }
 
 // runAsGroup (root -> non root)
-func (er *EscalationReport) RunGroupAsRootReduced() bool {
+func (er *LintReport) RunGroupAsRootReduced() bool {
 	return er.RemovedRunGroupAsRoot.IsReduced()
 }
 
 // runAsGroup
-func (er *EscalationReport) RunGroupAsRootNoChange() bool {
+func (er *LintReport) RunGroupAsRootNoChange() bool {
 	return er.NewRunGroupAsRoot.NoChanges()
 }
 
 // newly added volume types
-func (er *EscalationReport) AddedVolumes() bool {
+func (er *LintReport) AddedVolumes() bool {
 	return len(er.NewVolumeTypes) > 0
 }
 
 // removed volume types
-func (er *EscalationReport) RemovedVolumes() bool {
+func (er *LintReport) RemovedVolumes() bool {
 	return len(er.RemovedVolumeTypes) > 0
 }
 
 // added capabilities
-func (er *EscalationReport) AddedCapabilities() bool {
+func (er *LintReport) AddedCapabilities() bool {
 	return len(er.NewCapabilities) > 0
 }
 
 // dropped capabilities
-func (er *EscalationReport) DroppedCapabilities() bool {
+func (er *LintReport) DroppedCapabilities() bool {
 	return len(er.RemovedCapabilities) > 0
 }
 
-func (er *EscalationReport) Escalated() bool {
+func (er *LintReport) Escalated() bool {
 	if er.PrivilegedEscalated() || er.HostNetworkEscalated() || er.HostPIDEscalated() || er.HostIPCEscalated() || er.AddedVolumes() ||
 		er.AddedCapabilities() || er.ReadOnlyRootFSEscalated() || er.RunGroupAsRootEscalated() || er.RunUserAsRootEscalated() {
 		return true
@@ -293,7 +293,7 @@ func (er *EscalationReport) Escalated() bool {
 	return false
 }
 
-func (er *EscalationReport) Reduced() bool {
+func (er *LintReport) Reduced() bool {
 	if er.PrivilegedReduced() || er.HostNetworkReduced() || er.HostPIDReduced() || er.HostIPCReduced() || er.RemovedVolumes() ||
 		er.DroppedCapabilities() || er.ReadOnlyRootFSReduced() || er.RunGroupAsRootReduced() || er.RunUserAsRootReduced() {
 		return true
@@ -303,7 +303,7 @@ func (er *EscalationReport) Reduced() bool {
 }
 
 // GenerateEscalationReportFromSecurityContext returns a escalation report after comparing the source and target YAML files
-func (er *EscalationReport) GenerateEscalationReportFromSecurityContext(srcCssList, targetCssList []ContainerSecuritySpec, srcPssList, targetPssList []PodSecuritySpec) {
+func (er *LintReport) GenerateEscalationReportFromSecurityContext(srcCssList, targetCssList []ContainerSecuritySpec, srcPssList, targetPssList []PodSecuritySpec) {
 	srcCssMap := NewContainerSecuritySpecMap(srcCssList)
 	targetCssMap := NewContainerSecuritySpecMap(targetCssList)
 

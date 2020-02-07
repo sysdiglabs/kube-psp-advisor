@@ -15,7 +15,7 @@ const (
 )
 
 type Comparator struct {
-	escalationReport *types.EscalationReport
+	escalationReport *types.LintReport
 	gen              *generator.Generator
 	srcCssList       []types.ContainerSecuritySpec
 	srcPssList       []types.PodSecuritySpec
