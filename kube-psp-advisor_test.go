@@ -9,7 +9,14 @@ import (
 var (
 	workloadDir = "./test-yaml"
 
-	expectedYamls = []string{"test-yaml/base-busybox.yaml", "test-yaml/psp-grant.yaml", "test-yaml/testSrcDir/testdir/busy-box.yaml", "test-yaml/testTargetDir/testdir/busy-box.yaml"}
+	expectedYamls = []string{
+		"test-yaml/base-busybox.yaml",
+		"test-yaml/psp-grant.yaml",
+		"test-yaml/srcYamls/busy-box.yaml",
+		"test-yaml/srcYamls/nginx.yaml",
+		"test-yaml/targetYamls/busy-box.yaml",
+		"test-yaml/targetYamls/nginx.yaml",
+	}
 )
 
 func TestReadYamls(t *testing.T) {
