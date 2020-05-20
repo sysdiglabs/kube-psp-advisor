@@ -372,6 +372,8 @@ func (pg *Generator) GeneratePSPWithName(
 
 	hostPaths := map[string]bool{}
 
+	hostPorts := map[int32]bool{}
+
 	runAsUserCount := 0
 
 	runAsGroupCount := 0
@@ -447,11 +449,9 @@ func (pg *Generator) GeneratePSPWithName(
 			notAllowPrivilegeEscationCount++
 		}
 
-		// set host ports
-		//TODO: need to integrate with listening port during the runtime, might cause false positive.
-		//for _, port := range sc.HostPorts {
-		//	psp.Spec.HostPorts = append(psp.Spec.HostPorts, policyv1beta1.HostPortRange{Min: port, Max: port})
-		//}
+		for _, port := range sc.HostPorts {
+			hostPorts[port] = true
+		}
 	}
 
 	// set allowedPrivilegeEscalation
@@ -530,6 +530,17 @@ func (pg *Generator) GeneratePSPWithName(
 		if v == len(cssList) {
 			psp.Spec.RequiredDropCapabilities = append(psp.Spec.RequiredDropCapabilities, corev1.Capability(k))
 		}
+	}
+
+	// set host ports
+	portRangeList := types.PortRangeList{}
+	for hostPort := range hostPorts {
+		portRange := types.NewPortRange(hostPort, hostPort)
+		portRangeList = append(portRangeList, portRange)
+	}
+
+	for _, portRange := range portRangeList.Consolidate() {
+		psp.Spec.HostPorts = append(psp.Spec.HostPorts, policyv1beta1.HostPortRange{Min: portRange.Min, Max: portRange.Max})
 	}
 
 	// set to default values

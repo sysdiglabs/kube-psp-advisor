@@ -26,15 +26,15 @@ const (
 //PodSecurityPolicy Recommendation System help in the following attributes:
 //	1. allowPrivilegeEscalation - done
 //	2. allowedCapabilities - done
-//	3. allowedHostPaths - need further investigation
+//	3. allowedHostPaths - done
 //	4. hostIPC - done
 //	5. hostNetwork - done
 //	6. hostPID - done
-//	7. hostPorts - need further investigation
+//	7. hostPorts - done
 //	8. privileged - done
 //	9. readOnlyRootFilesystem - done
 //  10. runAsUser - done
-//  11. runAsGroup - half done
+//  11. runAsGroup - done
 //  12. Volume - done
 //	13. seLinux and others - need further investigation
 

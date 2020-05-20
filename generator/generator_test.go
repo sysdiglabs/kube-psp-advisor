@@ -32,6 +32,7 @@ var (
 			Namespace:                namespaceTest,
 			RunAsUser:                &runAsUser,
 			RunAsGroup:               &runAsGroup,
+			HostPorts:                []int32{80, 8080},
 		},
 		{Metadata: types.Metadata{
 			Kind: "Deployment",
@@ -47,6 +48,7 @@ var (
 			Namespace:      namespaceTest,
 			RunAsUser:      &runAsUser,
 			RunAsGroup:     &runAsGroup,
+			HostPorts:      []int32{80, 8081},
 		},
 	}
 
@@ -117,6 +119,18 @@ func TestCSS(t *testing.T) {
 
 	if psp.Spec.RunAsGroup.Ranges[0].Min != runAsGroup && psp.Spec.RunAsGroup.Ranges[0].Max != runAsGroup {
 		t.Fatal("psp should have set run as group to 1000")
+	}
+
+	if len(psp.Spec.HostPorts) != 2 {
+		t.Fatalf("there should be 2 port ranges, actual: %d", len(psp.Spec.HostPorts))
+	}
+
+	if psp.Spec.HostPorts[0].Min != 80 || psp.Spec.HostPorts[0].Max != 80 {
+		t.Fatalf("Expect port range [80, 80], actual: %v", psp.Spec.HostPorts[0])
+	}
+
+	if psp.Spec.HostPorts[1].Min != 8080 || psp.Spec.HostPorts[1].Max != 8081 {
+		t.Fatalf("Expect port range [8080, 8081], actual: %v", psp.Spec.HostPorts[1])
 	}
 }
 
