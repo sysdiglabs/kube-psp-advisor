@@ -44,6 +44,7 @@ The plugin will be available as `kubectl advise-psp`.
 - runAsUser
 - runAsGroup
 - Volume
+- hostPorts
 
 ## Limitations
 Some attributes(capabilities, host ports etc.) required gathering runtime information in order to provide the followings:
