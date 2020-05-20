@@ -47,9 +47,8 @@ The plugin will be available as `kubectl advise-psp`.
 - hostPorts
 
 ## Limitations
-Some attributes(capabilities, host ports etc.) required gathering runtime information in order to provide the followings:
+Some attributes(e.g. capabilities) required gathering runtime information in order to provide the followings:
 - Least privilege (capabilities captured from runtime)
-- Accuracy (host ports listening on `0.0.0.0`)
 
 ## High-level todo list
 
