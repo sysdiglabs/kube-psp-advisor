@@ -185,3 +185,7 @@ Command: `./kube-psp-advisor inspect --namespace=psp-test --report | jq .podSecu
   ]
 }
 ```
+
+## Commercial
+Generating PSPs based on runtime activity, simulating PSPs and managing different PSPs across Kubernetes namespaces can simplify the life of every Kubernetes operator.
+Check out how Sysdig Secure can help - https://sysdig.com/blog/psp-in-production/
