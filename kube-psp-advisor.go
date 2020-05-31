@@ -53,7 +53,7 @@ func inspectPsp(kubeconfig string, namespace string, withReport, withGrant bool)
 	return nil
 }
 
-func convertPsp(podObjFilename string, pspFilename string) error {
+func convertPsp(podObjFilename string, pspFilename string, defaultPspFile string) error {
 	podObjFile, err := os.Open(podObjFilename)
 	if err != nil {
 		return fmt.Errorf("Could not open pod object file %s for reading: %v", podObjFilename, err)
@@ -73,6 +73,11 @@ func convertPsp(podObjFilename string, pspFilename string) error {
 	psp_gen, err := generator.NewGenerator()
 	if err != nil {
 		return fmt.Errorf("failed to create PSP Generator: %v", err)
+	}
+
+	err = psp_gen.SetDefaultPspFromFile(defaultPspFile)
+	if err != nil {
+		return fmt.Errorf("Could not set default PSP: %v", err)
 	}
 
 	pspString, err := psp_gen.FromPodObjString(string(podObjString))
@@ -133,6 +138,7 @@ func main() {
 	var namespace string
 	var podObjFilename string
 	var pspFilename string
+	var defaultPspFilename string
 	var logLevel string
 	var srcYamlDir string
 	var targetYamlDir string
@@ -184,7 +190,7 @@ func main() {
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			err := convertPsp(podObjFilename, pspFilename)
+			err := convertPsp(podObjFilename, pspFilename, defaultPspFilename)
 			if err != nil {
 				log.Fatalf("Could not run convert command: %v", err)
 			}
@@ -224,6 +230,7 @@ func main() {
 
 	convertCmd.Flags().StringVar(&podObjFilename, "podFile", "", "Path to a yaml file containing an object with a pod Spec")
 	convertCmd.Flags().StringVar(&pspFilename, "pspFile", "", "Write the resulting PSP to this file")
+	convertCmd.Flags().StringVar(&defaultPspFilename, "defaultPspFile", "", "Path to a yaml file containing default Pod Security Policy.")
 
 	compareCmd.Flags().StringVar(&srcYamlDir, "sourceDir", "", "Source YAML directory to load YAMLs")
 	compareCmd.Flags().StringVar(&targetYamlDir, "targetDir", "", "Target YAML directory to load YAMLs")

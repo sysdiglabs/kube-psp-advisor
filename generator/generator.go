@@ -5,9 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -21,10 +25,6 @@ import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
-
-	"reflect"
-	"strings"
-	"time"
 )
 
 const (
@@ -32,11 +32,18 @@ const (
 )
 
 type Generator struct {
+	defaultPsp policyv1beta1.PodSecurityPolicy
 }
 
 func NewGenerator() (*Generator, error) {
+	generator := &Generator{defaultPsp: policyv1beta1.PodSecurityPolicy{}}
 
-	return &Generator{}, nil
+	err := generator.setDefaultPsp()
+	if err != nil {
+		return nil, err
+	}
+
+	return generator, nil
 }
 
 func getVolumeTypes(spec corev1.PodSpec, sa *corev1.ServiceAccount) (volumeTypes []string) {
@@ -545,24 +552,26 @@ func (pg *Generator) GeneratePSPWithName(
 
 	// set to default values
 	if string(psp.Spec.RunAsUser.Rule) == "" {
-		psp.Spec.RunAsUser.Rule = policyv1beta1.RunAsUserStrategyRunAsAny
+		psp.Spec.RunAsUser = pg.defaultPsp.Spec.RunAsUser
 	}
 
-	if psp.Spec.RunAsGroup != nil && string(psp.Spec.RunAsGroup.Rule) == "" {
-		psp.Spec.RunAsGroup.Rule = policyv1beta1.RunAsGroupStrategyRunAsAny
+	if psp.Spec.RunAsGroup == nil || string(psp.Spec.RunAsGroup.Rule) == "" {
+		psp.Spec.RunAsGroup = pg.defaultPsp.Spec.RunAsGroup
 	}
 
 	if string(psp.Spec.FSGroup.Rule) == "" {
-		psp.Spec.FSGroup.Rule = policyv1beta1.FSGroupStrategyRunAsAny
+		psp.Spec.FSGroup = pg.defaultPsp.Spec.FSGroup
 	}
 
 	if string(psp.Spec.SELinux.Rule) == "" {
-		psp.Spec.SELinux.Rule = policyv1beta1.SELinuxStrategyRunAsAny
+		psp.Spec.SELinux = pg.defaultPsp.Spec.SELinux
 	}
 
 	if string(psp.Spec.SupplementalGroups.Rule) == "" {
-		psp.Spec.SupplementalGroups.Rule = policyv1beta1.SupplementalGroupsStrategyRunAsAny
+		psp.Spec.SupplementalGroups = pg.defaultPsp.Spec.SupplementalGroups
 	}
+
+	// TODO: set default values of others.
 
 	return psp
 }
@@ -868,4 +877,77 @@ func getNamespace(ns string) string {
 	}
 
 	return "default"
+}
+
+// Set default psp of generator. Default PSP file has priority over setDefaultPsp().
+func (pg *Generator) SetDefaultPspFromFile(defaultPspFileName string) error {
+	var psp policyv1beta1.PodSecurityPolicy
+
+	pspObjFile, err := os.Open(defaultPspFileName)
+	if err != nil {
+		return fmt.Errorf("Could not open psp object file %s for reading: %v", defaultPspFileName, err)
+	}
+	defer pspObjFile.Close()
+
+	pspObjString, err := ioutil.ReadAll(pspObjFile)
+
+	if err != nil {
+		return fmt.Errorf("failed to read contents of psp object file %s: %v", defaultPspFileName, err)
+	}
+
+	pspObjJson, err := yaml.YAMLToJSON([]byte(pspObjString))
+	if err != nil {
+		return fmt.Errorf("Could not parse psp Object: %v", err)
+	}
+
+	var anyJson map[string]interface{}
+
+	err = json.Unmarshal(pspObjJson, &anyJson)
+
+	if err != nil {
+		return fmt.Errorf("Could not unmarshal json document: %v", err)
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(pspObjJson))
+	decoder.DisallowUnknownFields()
+
+	if anyJson["kind"] != "PodSecurityPolicy" {
+		return fmt.Errorf("Kind is not PodSecurityPolicy: %s", defaultPspFileName)
+	}
+
+	if err = decoder.Decode(&psp); err != nil {
+		return fmt.Errorf("Could not unmarshal json document as PSP: %v", err)
+	}
+
+	pg.defaultPsp = psp
+	// Set null fields.
+	pg.setDefaultPsp()
+
+	log.Debugf("setDefaultPspFromFile() is done. Default psp is : %v", &pg.defaultPsp)
+
+	return nil
+}
+
+// Set default PSP.
+func (pg *Generator) setDefaultPsp() error {
+	if pg.defaultPsp.Spec.RunAsUser.Rule == "" {
+		pg.defaultPsp.Spec.RunAsUser.Rule = policyv1beta1.RunAsUserStrategyRunAsAny
+	}
+	if pg.defaultPsp.Spec.RunAsGroup == nil {
+		pg.defaultPsp.Spec.RunAsGroup = &policyv1beta1.RunAsGroupStrategyOptions{}
+	}
+	if pg.defaultPsp.Spec.RunAsGroup.Rule == "" {
+		pg.defaultPsp.Spec.RunAsGroup.Rule = policyv1beta1.RunAsGroupStrategyRunAsAny
+	}
+	if pg.defaultPsp.Spec.FSGroup.Rule == "" {
+		pg.defaultPsp.Spec.FSGroup.Rule = policyv1beta1.FSGroupStrategyRunAsAny
+	}
+	if pg.defaultPsp.Spec.SELinux.Rule == "" {
+		pg.defaultPsp.Spec.SELinux.Rule = policyv1beta1.SELinuxStrategyRunAsAny
+	}
+	if pg.defaultPsp.Spec.SupplementalGroups.Rule == "" {
+		pg.defaultPsp.Spec.SupplementalGroups.Rule = policyv1beta1.SupplementalGroupsStrategyRunAsAny
+	}
+
+	return nil
 }
