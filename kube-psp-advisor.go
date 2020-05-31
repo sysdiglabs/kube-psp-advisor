@@ -75,9 +75,11 @@ func convertPsp(podObjFilename string, pspFilename string, defaultPspFile string
 		return fmt.Errorf("failed to create PSP Generator: %v", err)
 	}
 
-	err = psp_gen.SetDefaultPspFromFile(defaultPspFile)
-	if err != nil {
-		return fmt.Errorf("Could not set default PSP: %v", err)
+	if defaultPspFile != "" {
+		err = psp_gen.SetDefaultPspFromFile(defaultPspFile)
+		if err != nil {
+			return fmt.Errorf("Could not set default PSP: %v", err)
+		}
 	}
 
 	pspString, err := psp_gen.FromPodObjString(string(podObjString))
