@@ -53,7 +53,23 @@ func inspectPsp(kubeconfig string, namespace string, withReport, withGrant bool)
 	return nil
 }
 
-func convertPsp(podObjFilename string, pspFilename string, defaultPspFile string) error {
+func newGenerator(defaultPspFile string) (*generator.Generator, error) {
+	pspGen, err := generator.NewGenerator()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create PSP Generator: %v", err)
+	}
+
+	if defaultPspFile != "" {
+		err = pspGen.SetDefaultPspFromFile(defaultPspFile)
+		if err != nil {
+			return nil, fmt.Errorf("Could not set default PSP: %v", err)
+		}
+	}
+
+	return pspGen, nil
+}
+
+func generatePsp(podObjFilename string, pspFilename string, pspGen *generator.Generator) error {
 	podObjFile, err := os.Open(podObjFilename)
 	if err != nil {
 		return fmt.Errorf("Could not open pod object file %s for reading: %v", podObjFilename, err)
@@ -70,26 +86,36 @@ func convertPsp(podObjFilename string, pspFilename string, defaultPspFile string
 
 	log.Debugf("Contents of Obj File: %s", podObjString)
 
-	psp_gen, err := generator.NewGenerator()
-	if err != nil {
-		return fmt.Errorf("failed to create PSP Generator: %v", err)
-	}
-
-	if defaultPspFile != "" {
-		err = psp_gen.SetDefaultPspFromFile(defaultPspFile)
-		if err != nil {
-			return fmt.Errorf("Could not set default PSP: %v", err)
-		}
-	}
-
-	pspString, err := psp_gen.FromPodObjString(string(podObjString))
+	pspString, err := pspGen.FromPodObjString(string(podObjString))
 	if err != nil {
 		return fmt.Errorf("failed to generate PSP from pod Object: %v", err)
 	}
 
 	err = ioutil.WriteFile(pspFilename, []byte(pspString), 0644)
+	if err != nil {
+		return fmt.Errorf("Could not write file: %v", err)
+	}
 
 	log.Infof("Wrote generated psp to %s", pspFilename)
+	return nil
+}
+
+func convertPsp(podObjFilename string, pspFilename string) error {
+	pspGen, err := newGenerator("")
+	err = generatePsp(podObjFilename, pspFilename, pspGen)
+	if err != nil {
+		return fmt.Errorf("Could not generate psp: %v", err)
+	}
+
+	return nil
+}
+
+func convertPspFromDefaultPspFile(podObjFilename string, pspFilename string, defaultPspFilename string) error {
+	pspGen, err := newGenerator(defaultPspFilename)
+	err = generatePsp(podObjFilename, pspFilename, pspGen)
+	if err != nil {
+		return fmt.Errorf("Could not generate psp: %v", err)
+	}
 
 	return nil
 }
@@ -192,9 +218,16 @@ func main() {
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			err := convertPsp(podObjFilename, pspFilename, defaultPspFilename)
-			if err != nil {
-				log.Fatalf("Could not run convert command: %v", err)
+			if defaultPspFilename == "" {
+				err := convertPsp(podObjFilename, pspFilename)
+				if err != nil {
+					log.Fatalf("Could not run convert command: %v", err)
+				}
+			} else {
+				err := convertPspFromDefaultPspFile(podObjFilename, pspFilename, defaultPspFilename)
+				if err != nil {
+					log.Fatalf("Could not run convert command using default psp file: %v", err)
+				}
 			}
 		},
 	}
