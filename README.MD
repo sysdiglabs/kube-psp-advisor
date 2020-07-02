@@ -2,7 +2,7 @@
 
 kube-psp-advisor is a tool that makes it easier to create K8s Pod Security Policies (PSPs) from either a live K8s environment or from a single .yaml file containing a pod specification (Deployment, DaemonSet, Pod, etc).
 
-It has 2 subcommands, `kube-psp-advisor inspect` and `kube-psp-advisor convert`. `inspect` connects to a K8s API server, downloads all Pod-related objects in a given namespace, and generates a PSP based on the properties of those objects. `convert` works without connecting to an API Server, reading a single .yaml file containing a object with a pod spec and generating a PSP based on the file.
+It has 2 subcommands, `kube-psp-advisor inspect` and `kube-psp-advisor convert`. `inspect` connects to a K8s API server, scan the security context of workloads in a given namespace or the entire cluster, and generates a PSP based on the security context. `convert` works without connecting to an API Server, reading a single .yaml file containing a object with a pod spec and generating a PSP based on the file.
 
 ## Installation as a Krew Plugin
 
