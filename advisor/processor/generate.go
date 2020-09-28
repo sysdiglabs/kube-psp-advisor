@@ -3,6 +3,7 @@ package processor
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/report"
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
@@ -17,6 +18,7 @@ import (
 type Processor struct {
 	k8sClient         *kubernetes.Clientset
 	namespace         string
+	excludeNamespaces []string // excludeNamespaces is a slice of namespaces that will be excluded from processing
 	serviceAccountMap map[string]v1.ServiceAccount
 	serverGitVersion  string
 	gen               *generator.Generator
@@ -54,6 +56,22 @@ func NewProcessor(kubeconfig string) (*Processor, error) {
 
 func (p *Processor) SetNamespace(ns string) {
 	p.namespace = ns
+}
+
+func (p *Processor) SetExcludeNamespaces(excludeNamespaces []string) {
+	p.excludeNamespaces = excludeNamespaces
+}
+
+func (p *Processor) getFieldSelector() string {
+	var list []string
+	for _, ns := range p.excludeNamespaces {
+		if ns == "" {
+			continue
+		}
+		list = append(list, "metadata.namespace!="+ns)
+	}
+
+	return strings.Join(list, ",")
 }
 
 // GeneratePSP generates Pod Security Policy

@@ -23,14 +23,14 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
-func inspectPsp(kubeconfig string, namespace string, withReport, withGrant bool) error {
+func inspectPsp(kubeconfig string, namespace string, excludeNamespaces []string, withReport, withGrant bool) error {
 	advisor, err := advisor.NewAdvisor(kubeconfig)
 
 	if err != nil {
 		return fmt.Errorf("Could not create advisor object: %v", err)
 	}
 
-	err = advisor.Process(namespace)
+	err = advisor.Process(namespace, excludeNamespaces)
 
 	if err != nil {
 		return fmt.Errorf("Could not run advisor to inspect cluster and generate PSP: %v", err)
@@ -131,6 +131,7 @@ func main() {
 	var withReport bool
 	var withGrant bool
 	var namespace string
+	var excludeNamespaces []string
 	var podObjFilename string
 	var pspFilename string
 	var logLevel string
@@ -162,7 +163,7 @@ func main() {
 		Short: "Inspect a live K8s Environment to generate a PodSecurityPolicy",
 		Long:  "Fetch all objects in the provided namespace to generate a Pod Security Policy",
 		Run: func(cmd *cobra.Command, args []string) {
-			err := inspectPsp(kubeconfig, namespace, withReport, withGrant)
+			err := inspectPsp(kubeconfig, namespace, excludeNamespaces, withReport, withGrant)
 			if err != nil {
 				log.Fatalf("Could not run inspect command: %v", err)
 			}
@@ -221,6 +222,7 @@ func main() {
 	inspectCmd.Flags().BoolVarP(&withReport, "report", "r", false, "(optional) return with detail report")
 	inspectCmd.Flags().BoolVarP(&withGrant, "grant", "g", false, "(optional) return with pod security policies, roles and rolebindings")
 	inspectCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "(optional) namespace")
+	inspectCmd.Flags().StringSliceVarP(&excludeNamespaces, "exclude-namespaces", "e", []string{}, "(optional) comma separated list of namespaces to exclude")
 
 	convertCmd.Flags().StringVar(&podObjFilename, "podFile", "", "Path to a yaml file containing an object with a pod Spec")
 	convertCmd.Flags().StringVar(&pspFilename, "pspFile", "", "Write the resulting PSP to this file")

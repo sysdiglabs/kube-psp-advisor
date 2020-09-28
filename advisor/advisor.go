@@ -41,8 +41,9 @@ func NewAdvisor(kubeconfig string) (*Advisor, error) {
 	}, nil
 }
 
-func (advisor *Advisor) Process(namespace string) error {
+func (advisor *Advisor) Process(namespace string, excludeNamespaces []string) error {
 	advisor.processor.SetNamespace(namespace)
+	advisor.processor.SetExcludeNamespaces(excludeNamespaces)
 
 	cssList, pssList, err := advisor.processor.GetSecuritySpec()
 

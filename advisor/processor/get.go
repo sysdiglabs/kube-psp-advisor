@@ -25,7 +25,8 @@ func (p *Processor) getSecuritySpecFromDaemonSets() ([]types.ContainerSecuritySp
 	cspList := []types.ContainerSecuritySpec{}
 	pspList := []types.PodSecuritySpec{}
 
-	daemonSetList, err := clientset.AppsV1().DaemonSets(p.namespace).List(v1meta.ListOptions{})
+	lo := v1meta.ListOptions{FieldSelector: p.getFieldSelector()}
+	daemonSetList, err := clientset.AppsV1().DaemonSets(p.namespace).List(lo)
 
 	if err != nil {
 		return cspList, pspList, err
@@ -51,7 +52,8 @@ func (p *Processor) getSecuritySpecFromReplicaSets() ([]types.ContainerSecurityS
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	replicaSetList, err := clientset.AppsV1().ReplicaSets(p.namespace).List(v1meta.ListOptions{})
+	lo := v1meta.ListOptions{FieldSelector: p.getFieldSelector()}
+	replicaSetList, err := clientset.AppsV1().ReplicaSets(p.namespace).List(lo)
 
 	if err != nil {
 		return cssList, pssList, err
@@ -80,7 +82,8 @@ func (p *Processor) getSecuritySpecFromStatefulSets() ([]types.ContainerSecurity
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	statefulSetList, err := clientset.AppsV1().StatefulSets(p.namespace).List(v1meta.ListOptions{})
+	lo := v1meta.ListOptions{FieldSelector: p.getFieldSelector()}
+	statefulSetList, err := clientset.AppsV1().StatefulSets(p.namespace).List(lo)
 
 	if err != nil {
 		return cssList, pssList, err
@@ -105,7 +108,8 @@ func (p *Processor) getSecuritySpecFromReplicationController() ([]types.Containe
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	replicationControllerList, err := clientset.CoreV1().ReplicationControllers(p.namespace).List(v1meta.ListOptions{})
+	lo := v1meta.ListOptions{FieldSelector: p.getFieldSelector()}
+	replicationControllerList, err := clientset.CoreV1().ReplicationControllers(p.namespace).List(lo)
 
 	if err != nil {
 		return cssList, pssList, err
@@ -130,7 +134,8 @@ func (p *Processor) getSecuritySpecFromCronJobs() ([]types.ContainerSecuritySpec
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	jobList, err := clientset.BatchV1beta1().CronJobs(p.namespace).List(v1meta.ListOptions{})
+	lo := v1meta.ListOptions{FieldSelector: p.getFieldSelector()}
+	jobList, err := clientset.BatchV1beta1().CronJobs(p.namespace).List(lo)
 
 	if err != nil {
 		return cssList, pssList, err
@@ -155,7 +160,8 @@ func (p *Processor) getSecuritySpecFromJobs() ([]types.ContainerSecuritySpec, []
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	jobList, err := clientset.BatchV1().Jobs(p.namespace).List(v1meta.ListOptions{})
+	lo := v1meta.ListOptions{FieldSelector: p.getFieldSelector()}
+	jobList, err := clientset.BatchV1().Jobs(p.namespace).List(lo)
 
 	if err != nil {
 		return cssList, pssList, err
@@ -183,7 +189,8 @@ func (p *Processor) getSecuritySpecFromDeployments() ([]types.ContainerSecurityS
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	deployments, err := clientset.AppsV1().Deployments(p.namespace).List(v1meta.ListOptions{})
+	lo := v1meta.ListOptions{FieldSelector: p.getFieldSelector()}
+	deployments, err := clientset.AppsV1().Deployments(p.namespace).List(lo)
 
 	if err != nil {
 		return cssList, pssList, err
@@ -208,7 +215,8 @@ func (p *Processor) getSecuritySpecFromPods() ([]types.ContainerSecuritySpec, []
 	cssList := []types.ContainerSecuritySpec{}
 	pssList := []types.PodSecuritySpec{}
 
-	pods, err := clientset.CoreV1().Pods(p.namespace).List(v1meta.ListOptions{})
+	lo := v1meta.ListOptions{FieldSelector: p.getFieldSelector()}
+	pods, err := clientset.CoreV1().Pods(p.namespace).List(lo)
 
 	if err != nil {
 		return cssList, pssList, err
@@ -235,7 +243,8 @@ func (p *Processor) getSecuritySpecFromPods() ([]types.ContainerSecuritySpec, []
 func (p *Processor) getServiceAccountMap() (map[string]v1.ServiceAccount, error) {
 	serviceAccountMap := map[string]v1.ServiceAccount{}
 
-	serviceAccounts, err := p.k8sClient.CoreV1().ServiceAccounts(p.namespace).List(v1meta.ListOptions{})
+	lo := v1meta.ListOptions{FieldSelector: p.getFieldSelector()}
+	serviceAccounts, err := p.k8sClient.CoreV1().ServiceAccounts(p.namespace).List(lo)
 	if err != nil {
 		return serviceAccountMap, err
 	}
