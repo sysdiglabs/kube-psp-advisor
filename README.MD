@@ -45,6 +45,7 @@ The plugin will be available as `kubectl advise-psp`.
 - runAsGroup
 - Volume
 - hostPorts
+- allowedUnsafeSysctls
 
 ## Limitations
 Some attributes(e.g. capabilities) required gathering runtime information in order to provide the followings:
