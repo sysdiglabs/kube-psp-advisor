@@ -258,6 +258,18 @@ func getCapabilities(sc *corev1.SecurityContext) (addList []string, dropList []s
 	return utils.MapToArray(addCapMap), utils.MapToArray(dropCapMap)
 }
 
+func getSysctls(psc *corev1.PodSecurityContext) (sysctls []string) {
+	if psc == nil {
+		return
+	}
+
+	for _, s := range psc.Sysctls {
+		sysctls = append(sysctls, s.Name)
+	}
+
+	return sysctls
+}
+
 func mountServiceAccountToken(spec corev1.PodSpec, sa corev1.ServiceAccount) bool {
 	// First Pod's preference is checked
 	if spec.AutomountServiceAccountToken != nil {
@@ -283,6 +295,7 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 		VolumeTypes:    getVolumeTypes(spec, sa),
 		MountHostPaths: getVolumeHostPaths(spec),
 		ServiceAccount: getServiceAccountName(spec),
+		Sysctls:        getSysctls(spec.SecurityContext),
 	}
 
 	for _, container := range spec.InitContainers {
@@ -374,6 +387,8 @@ func (pg *Generator) GeneratePSPWithName(
 
 	hostPorts := map[int32]bool{}
 
+	sysctls := map[string]bool{}
+
 	runAsUserCount := 0
 
 	runAsGroupCount := 0
@@ -409,6 +424,10 @@ func (pg *Generator) GeneratePSPWithName(
 			} else {
 				hostPaths[path] = readOnly && hostPaths[path]
 			}
+		}
+
+		for _, s := range sc.Sysctls {
+			sysctls[s] = true
 		}
 	}
 
@@ -537,6 +556,11 @@ func (pg *Generator) GeneratePSPWithName(
 	for hostPort := range hostPorts {
 		portRange := types.NewPortRange(hostPort, hostPort)
 		portRangeList = append(portRangeList, portRange)
+	}
+
+	// set allowedUnsafeSysctls
+	for s := range sysctls {
+		psp.Spec.AllowedUnsafeSysctls = append(psp.Spec.AllowedUnsafeSysctls, s)
 	}
 
 	for _, portRange := range portRangeList.Consolidate() {

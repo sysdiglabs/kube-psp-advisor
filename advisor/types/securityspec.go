@@ -37,6 +37,7 @@ const (
 //  11. runAsGroup - done
 //  12. Volume - done
 //	13. seLinux and others - need further investigation
+//  14. allowedUnsafeSysctls - done
 
 type ContainerSecuritySpec struct {
 	Metadata                 Metadata `json:"parentMetadata"`
@@ -69,6 +70,7 @@ type PodSecuritySpec struct {
 	VolumeTypes    []string        `json:"volumeTypes,omitempty"`
 	MountHostPaths map[string]bool `json:"mountedHostPath,omitempty"`
 	ServiceAccount string          `json:"serviceAccount,omitempty"`
+	Sysctls        []string        `json:"sysctls,omitempty"`
 }
 
 type Metadata struct {

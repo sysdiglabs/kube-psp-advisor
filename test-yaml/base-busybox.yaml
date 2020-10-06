@@ -27,6 +27,12 @@ metadata:
   name: busy-pod
   namespace: psp-test
 spec:
+  securityContext:
+    sysctls:
+    - name: kernel.shm_rmid_forced
+      value: "0"
+    - name: net.core.somaxconn
+      value: "1024"
   containers:
   - name: my-busybox
     image: busybox 
@@ -200,6 +206,12 @@ spec:
       labels:
         app: busy-ds
     spec:
+      securityContext:
+        sysctls:
+        - name: kernel.shm_rmid_forced
+          value: "0"
+        - name: kernel.msgmax
+          value: "65536"
       serviceAccount: sa-2
       containers:
       - name: my-busybox
