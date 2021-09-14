@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -55,6 +57,23 @@ func getVolumeTypes(spec corev1.PodSpec, sa *corev1.ServiceAccount) (volumeTypes
 
 	volumeTypes = utils.MapToArray(volumeTypeMap)
 	return
+}
+
+//NEW OPA
+func getVolumeMounts(spec corev1.PodSpec) map[string]bool {
+	containerMountMap := map[string]bool{}
+
+	for _, c := range spec.Containers {
+		for _, vm := range c.VolumeMounts {
+			if _, exists := containerMountMap[vm.Name]; !exists {
+				containerMountMap[vm.Name] = vm.ReadOnly
+			} else {
+				containerMountMap[vm.Name] = containerMountMap[vm.Name] && vm.ReadOnly
+			}
+		}
+	}
+
+	return containerMountMap
 }
 
 func getVolumeHostPaths(spec corev1.PodSpec) map[string]bool {
@@ -293,6 +312,7 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 		HostNetwork:    spec.HostNetwork,
 		HostIPC:        spec.HostIPC,
 		VolumeTypes:    getVolumeTypes(spec, sa),
+		VolumeMounts:   getVolumeMounts(spec),
 		MountHostPaths: getVolumeHostPaths(spec),
 		ServiceAccount: getServiceAccountName(spec),
 		Sysctls:        getSysctls(spec.SecurityContext),
@@ -354,6 +374,20 @@ func (pg *Generator) GeneratePSP(cssList []types.ContainerSecuritySpec,
 	namespace, serverGitVersion string) *policyv1beta1.PodSecurityPolicy {
 
 	return pg.GeneratePSPWithName(cssList, pssList, namespace, serverGitVersion, "")
+}
+
+func (pg *Generator) GenerateOPA(cssList []types.ContainerSecuritySpec,
+	pssList []types.PodSecuritySpec,
+	namespace, serverGitVersion string, OPAdefaultRule bool) *ast.Module {
+
+	return pg.GenerateOPAPodWithName(cssList, pssList, namespace, serverGitVersion, "", OPAdefaultRule)
+}
+
+func (pg *Generator) GenerateOPAPod(cssList []types.ContainerSecuritySpec,
+	pssList []types.PodSecuritySpec,
+	namespace, serverGitVersion string, OPAdefaultRule bool) *ast.Module {
+
+	return pg.GenerateOPAPodWithName(cssList, pssList, namespace, serverGitVersion, "", OPAdefaultRule)
 }
 
 // GeneratePSP generate Pod Security Policy
@@ -592,7 +626,327 @@ func (pg *Generator) GeneratePSPWithName(
 	return psp
 }
 
-func (pg *Generator) fromPodObj(metadata types.Metadata, spec corev1.PodSpec) (string, error) {
+func (pg *Generator) GenerateOPAPodWithName(
+	cssList []types.ContainerSecuritySpec,
+	pssList []types.PodSecuritySpec,
+	namespace, serverGitVersion, pspName string, OPAdefaultRule bool) *ast.Module {
+
+	var ns string
+	// no OPA will be generated if no security spec is provided
+	if len(cssList) == 0 && len(pssList) == 0 {
+		return nil
+	}
+
+	var mod ast.Module
+	pack := ast.MustParsePackage("package kubernetes.admission")
+
+	a := ast.Head{
+		Name: "deny",
+		Key: &ast.Term{
+			ast.VarTerm("message").Value,
+			nil,
+		},
+	}
+	rule := ast.Rule{
+		nil,
+		false,
+		&a,
+		nil,
+		nil,
+		nil,
+	}
+
+	hostPaths := []string{}
+	volumeMounts := map[string]bool{}
+	volumeMountValues := []string{}
+	hostPid := false
+	HostIPC := false
+	HostNet := false
+	sysctls := []string{}
+	Privileged := false
+	ReadOnlyRootFS := 0
+	runAsUserCount := 0
+
+	runAsGroupCount := 0
+	RunAsNonRoot := 0
+	AllowPrivilegeEscalation := 0
+	addedCap := []string{}
+	droppedCap := []string{}
+	runAsUser := []string{}
+	runAsGroup := []string{}
+
+	effectiveCap := map[string]bool{}
+	hostPorts := []string{}
+	basepath := ""
+
+	ns = namespace
+
+	if ns == "" {
+		ns = "all"
+	}
+	rule.Body.Append(ast.MustParseExpr("workload := input.request.object"))
+	rule.Body.Append(ast.NewExpr(ast.VarTerm("valueWorkLoadSecContext(workload)")))
+	valueWorkLoadSecContext := addOPARule("valueWorkLoadSecContext", "workload")
+
+	for _, wsc := range pssList {
+
+		hostPid = hostPid || wsc.HostPID
+		HostIPC = HostIPC || wsc.HostIPC
+		HostNet = HostNet || wsc.HostNetwork
+
+		for path, _ := range wsc.MountHostPaths {
+			hostPaths = append(hostPaths, "\""+path+"\"")
+		}
+
+		for name, readOnly := range wsc.MountHostPaths {
+			if _, exists := volumeMounts[name]; !exists {
+				if readOnly {
+					volumeMounts[name] = readOnly
+					volumeMountValues = append(volumeMountValues, "\""+name+"\"")
+				}
+			} else {
+				volumeMounts[name] = readOnly && volumeMounts[name]
+			}
+		}
+
+		for _, s := range wsc.Sysctls {
+			sysctls = append(sysctls, "\""+s+"\"")
+		}
+
+		if wsc.Metadata.Kind == "Deployment" || wsc.Metadata.Kind == "Job" || wsc.Metadata.Kind == "ReplicaSet" || wsc.Metadata.Kind == "DaemonSet" || wsc.Metadata.Kind == "ReplicationController" {
+			basepath = "input.request.object.spec.template.spec"
+		} else {
+			basepath = "input.request.object.spec"
+		}
+
+	}
+
+	valueWorkLoadSecContext.Body.Append(ast.MustParseExpr("container := " + basepath + ".containers[_]"))
+
+	if len(hostPaths) > 0 {
+		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr("volumeHostPaths(workload)"))
+		valueHostPathRule := addOPARule("volumeHostPaths", "workload")
+		valueHostPathRule.Body.Append(ast.MustParseExpr("hostPaths = {" + strings.Join(hostPaths, ",") + "}"))
+		valueHostPathRule.Body.Append(ast.MustParseExpr("diff_fields := {label | label := " + basepath + ".volumes[_].hostPath.path} -  hostPaths"))
+		valueHostPathRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
+		valueHostPathRule.Body.Append(ast.MustParseExpr("names := {name | path1 := {p | volumes := " + basepath + ".volumes[_];checkHostPort(volumes); p := volumes};name := path1[_].name}"))
+		valueHostPathRule.Body.Append(ast.MustParseExpr("namesNotRO := {name | path1 := {p | volumeMounts := " + basepath + ".containers[_].volumeMounts[_]; not volumeMounts.readOnly == true; p := volumeMounts}; name := path1[_].name}"))
+		valueHostPathRule.Body.Append(ast.MustParseExpr("intersect := namesNotRO & names"))
+		valueHostPathRule.Body.Append(ast.MustParseExpr("not namesNotRO == names"))
+		valueHostPathRule.Body.Append(ast.MustParseExpr("count(intersect) == 0"))
+
+		for volume := range volumeMounts {
+			valueHostPathRule := addOPARule("checkHostPort", "volumes")
+			valueHostPathRule.Body.Append(ast.MustParseExpr("volumes.hostPath.path == \"" + volume + "\""))
+			mod.Rules = append(mod.Rules, valueHostPathRule)
+		}
+
+		mod.Rules = append(mod.Rules, valueHostPathRule)
+	}
+
+	if len(sysctls) > 0 {
+		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr("valueSysctls(workload)"))
+		valueSysctlsRule := addOPARule("valueSysctls", "sysctls")
+		valueSysctlsRule.Body.Append(ast.MustParseExpr("sysctls = {" + strings.Join(sysctls, ",") + "}"))
+		valueSysctlsRule.Body.Append(ast.MustParseExpr("setSysctls := {" + basepath + ".securityContext.sysctls[_] | " + basepath + ".securityContext.sysctls[_] != null}"))
+		valueSysctlsRule.Body.Append(ast.MustParseExpr("count(setSysctls) > 0"))
+		valueSysctlsRule.Body.Append(ast.MustParseExpr("diff_fields := {label | label := " + basepath + ".securityContext.sysctls[_]} -  sysctls"))
+		valueSysctlsRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
+		mod.Rules = append(mod.Rules, valueSysctlsRule)
+	}
+
+	if hostPid {
+		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr(basepath + ".hostPID"))
+	}
+	if HostIPC {
+		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr(basepath + ".hostIPC"))
+	}
+	if HostNet {
+		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr(basepath + ".hostNetwork"))
+	}
+	mod.Rules = append(mod.Rules, valueWorkLoadSecContext)
+
+	valueWorkLoadSecContext.Body.Append(ast.NewExpr(ast.VarTerm("valueSecContext(container)")))
+
+	for _, sc := range cssList {
+		for _, cap := range sc.Capabilities {
+			effectiveCap[cap] = true
+		}
+
+		for _, cap := range sc.AddedCap {
+			addedCap = append(addedCap, "\""+cap+"\"")
+		}
+
+		for _, cap := range sc.DroppedCap {
+			droppedCap = append(droppedCap, "\""+cap+"\"")
+		}
+
+		Privileged = Privileged || sc.Privileged
+
+		// runAsUser is set and not to root
+		if sc.RunAsUser != nil && *sc.RunAsUser != 0 {
+			runAsUser = append(runAsUser, strconv.FormatInt(*sc.RunAsUser, 10))
+			runAsUserCount++
+		}
+
+		// runAsGroup is set
+		if sc.RunAsGroup != nil && *sc.RunAsGroup != 0 {
+			runAsGroup = append(runAsGroup, strconv.FormatInt(*sc.RunAsGroup, 10))
+			runAsGroupCount++
+		}
+
+		for _, port := range sc.HostPorts {
+			hostPorts = append(hostPorts, fmt.Sprint(port))
+		}
+
+		if sc.ReadOnlyRootFS {
+			ReadOnlyRootFS++
+		}
+
+		if sc.RunAsNonRoot != nil && *sc.RunAsNonRoot {
+			RunAsNonRoot++
+		}
+
+		if sc.AllowPrivilegeEscalation != nil && !*sc.AllowPrivilegeEscalation {
+			AllowPrivilegeEscalation++
+		}
+	}
+
+	valueSecContextRule := addOPARule("valueSecContext", "container")
+
+	if len(addedCap) > 0 {
+		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueAddedCap(container)")))
+		valueAddedCapRule := addOPARule("valueAddedCap", "addedCap")
+		valueAddedCapRule.Body.Append(ast.MustParseExpr("caps = {" + strings.Join(addedCap, ",") + "}"))
+		//valueAddedCapRule.Body.Append(ast.MustParseExpr("setAddedCap := {"+basepath+".containers[i].securityContext.capabilities.add[i] | "+basepath+".containers[i].securityContext.capabilities.add[i] != null}"))
+		//valueAddedCapRule.Body.Append(ast.MustParseExpr("count(setAddedCap) > 0"))
+		valueAddedCapRule.Body.Append(ast.MustParseExpr("diff_fields := {label | label := " + basepath + ".containers[_].securityContext.capabilities.add[_]} -  caps"))
+		valueAddedCapRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
+		mod.Rules = append(mod.Rules, valueAddedCapRule)
+	}
+
+	if len(droppedCap) > 0 {
+		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueDroppedCap(container)")))
+		valueDroppedCapRule := addOPARule("valueDroppedCap", "droppedCap")
+		valueDroppedCapRule.Body.Append(ast.MustParseExpr("caps = {" + strings.Join(droppedCap, ",") + "}"))
+		//valueDroppedCapRule.Body.Append(ast.MustParseExpr("setDroppedCap := {"+basepath+".containers[i].securityContext.capabilities.drop[i] | "+basepath+".containers[i].securityContext.capabilities.drop[i] != null}"))
+		//valueDroppedCapRule.Body.Append(ast.MustParseExpr("count(setDroppedCap) > 0"))
+		valueDroppedCapRule.Body.Append(ast.MustParseExpr("diff_fields := {label | label := " + basepath + ".containers[_].securityContext.capabilities.drop[_]} -  caps"))
+		valueDroppedCapRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
+		mod.Rules = append(mod.Rules, valueDroppedCapRule)
+	}
+
+	if len(runAsUser) > 0 {
+		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueRunAsUserID(container)")))
+		valueHostRunAsUserRule := addOPARule("valueRunAsUserID", "uid")
+		valueHostRunAsUserRule.Body.Append(ast.MustParseExpr("uids = {" + strings.Join(runAsUser, ",") + "}"))
+		valueHostRunAsUserRule.Body.Append(ast.MustParseExpr("setRunAsUser := {" + basepath + ".containers[_].securityContext.runAsUser | " + basepath + ".containers[_].securityContext.runAsUser != null}"))
+		valueHostRunAsUserRule.Body.Append(ast.MustParseExpr("count(setRunAsUser) > 0"))
+		valueHostRunAsUserRule.Body.Append(ast.MustParseExpr("diff_fields := setRunAsUser - uids"))
+		valueHostRunAsUserRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
+		mod.Rules = append(mod.Rules, valueHostRunAsUserRule)
+	}
+
+	// runAsGroup is set
+	if len(runAsGroup) > 0 {
+		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueRunAsGroupID(container)")))
+		valueHostRunAsGroupRule := addOPARule("valueRunAsGroupID", "gid")
+		valueHostRunAsGroupRule.Body.Append(ast.MustParseExpr("gids = {" + strings.Join(runAsGroup, ",") + "}"))
+		valueHostRunAsGroupRule.Body.Append(ast.MustParseExpr("setRunAsGroup := {" + basepath + ".containers[_].securityContext.runAsGroup | " + basepath + ".containers[_].securityContext.runAsGroup != null}"))
+		valueHostRunAsGroupRule.Body.Append(ast.MustParseExpr("count(setRunAsGroup) > 0"))
+		valueHostRunAsGroupRule.Body.Append(ast.MustParseExpr("diff_fields := setRunAsGroup - gids"))
+		valueHostRunAsGroupRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
+		mod.Rules = append(mod.Rules, valueHostRunAsGroupRule)
+	}
+
+	if len(hostPorts) > 0 {
+		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueHostPort(container)")))
+		valueHostPortRule := addOPARule("valueHostPort", "container")
+		valueHostPortRule.Body.Append(ast.MustParseExpr("ports = {" + strings.Join(hostPorts, ",") + "}"))
+		valueHostPortRule.Body.Append(ast.MustParseExpr("setHostPort := {" + basepath + ".containers[_].ports[_].hostPort | " + basepath + ".containers[_].ports[_].hostPort != null}"))
+		valueHostPortRule.Body.Append(ast.MustParseExpr("count(setHostPort) > 0"))
+		valueHostPortRule.Body.Append(ast.MustParseExpr("diff_fields := setHostPort - ports"))
+		valueHostPortRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
+		mod.Rules = append(mod.Rules, valueHostPortRule)
+	}
+
+	/*
+		if len(volumeMounts) > 0{
+			valueSecContextRule.Body.Append(ast.MustParseExpr("volumeMountValue(container)"))
+			valueVolumeMountsRule:= addOPARule("volumeMountValue" ,"container" )
+			valueVolumeMountsRule.Body.Append(ast.MustParseExpr("hostPaths = {"+strings.Join(volumeMountValues, ",")+"}"))
+			valueVolumeMountsRule.Body.Append(ast.MustParseExpr("diff_fields := {label | label := input.request.object.spec.containers[_].volumeMounts[_].name} -  hostPaths"))
+			valueVolumeMountsRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
+
+			valueVolumeMountsRule.Body.Append(ast.MustParseExpr("volumeMount := input.request.object.spec.containers[_].volumeMounts[_]"))
+
+			for volume := range volumeMounts {
+				name:=rand.String(3)
+				valueVolumeMountsRule.Body.Append(ast.MustParseExpr("volumeMountValue_" + name + "(volumeMount)"))
+				valueHostPathRule:= addOPARule("volumeMountValue_"+name ,"volumeMount" )
+				valueHostPathRule.Body.Append(ast.MustParseExpr(checkOPADefault(OPAdefaultRule)+"volums.hostPath.path == \"" + volume + "\""))
+				valueHostPathRule.Body.Append(ast.MustParseExpr("volumeMount.readOnly == true"))
+				mod.Rules = append(mod.Rules, valueHostPathRule)
+			}
+
+			mod.Rules = append(mod.Rules, valueVolumeMountsRule)
+		}
+	*/
+
+	// set allowed host path
+
+	if Privileged {
+		valueSecContextRule.Body.Append(ast.MustParseExpr("container.securityContext.privileged"))
+	}
+
+	if ReadOnlyRootFS == len(cssList) {
+		valueSecContextRule.Body.Append(ast.MustParseExpr("container.securityContext.readOnlyRootFilesystem"))
+	}
+
+	if RunAsNonRoot == len(cssList) {
+		valueSecContextRule.Body.Append(ast.MustParseExpr("container.securityContext.runAsNonRoot"))
+	}
+
+	if AllowPrivilegeEscalation == len(cssList) {
+		valueSecContextRule.Body.Append(ast.MustParseExpr("container.securityContext.allowPrivilegeEscalation == false"))
+	}
+	mod.Rules = append(mod.Rules, valueSecContextRule)
+
+	rule.Body.Append(ast.MustParseExpr("message := sprintf(\"Container runs in privileged mode.\", [workload.metadata.name])"))
+	mod.Package = pack
+	mod.Rules = append(mod.Rules, &rule)
+
+	return &mod
+
+}
+
+func checkOPADefault(OPAdefaultRule bool) string {
+	if !OPAdefaultRule {
+		return "not "
+	} else {
+		return ""
+	}
+}
+
+func addOPARule(nameRuleHead string, arg string) *ast.Rule {
+	RuleHead := ast.Head{
+		Name: ast.Var(nameRuleHead),
+		Args: []*ast.Term{
+			ast.VarTerm(arg),
+		},
+	}
+	Rule := ast.Rule{
+		nil,
+		false,
+		&RuleHead,
+		nil,
+		nil,
+		nil,
+	}
+	return &Rule
+}
+
+func (pg *Generator) fromPodObj(metadata types.Metadata, spec corev1.PodSpec, OPAformat bool, OPAdefaultRule bool) (string, error) {
 
 	cssList, pss := pg.GetSecuritySpecFromPodSpec(metadata, "default", spec, nil)
 
@@ -601,78 +955,86 @@ func (pg *Generator) fromPodObj(metadata types.Metadata, spec corev1.PodSpec) (s
 	// We assume a namespace "default", which is only used for the
 	// name of the resulting PSP, and assume a k8s version of
 	// 1.11, which allows enforcing ReadOnly.
-	psp := pg.GeneratePSP(cssList, pssList, "default", types.Version1_11)
+	var psp *policyv1beta1.PodSecurityPolicy
+	var mod *ast.Module
+	var out string
 
-	pspJson, err := json.Marshal(psp)
-	if err != nil {
-		return "", fmt.Errorf("Could not marshal resulting PSP: %v", err)
+	if !OPAformat {
+		psp = pg.GeneratePSP(cssList, pssList, "default", types.Version1_11)
+		pspJson, err := json.Marshal(psp)
+		if err != nil {
+			return "", fmt.Errorf("Could not marshal resulting PSP: %v", err)
+		}
+		pspYaml, err := yaml.JSONToYAML(pspJson)
+		if err != nil {
+			return "", fmt.Errorf("Could not convert resulting PSP to Json: %v", err)
+		}
+		out = string(pspYaml)
+	} else {
+		mod = pg.GenerateOPAPod(cssList, pssList, "default", types.Version1_11, OPAdefaultRule)
+		out = mod.String()
 	}
 
-	pspYaml, err := yaml.JSONToYAML(pspJson)
-	if err != nil {
-		return "", fmt.Errorf("Could not convert resulting PSP to Json: %v", err)
-	}
-
-	return string(pspYaml), nil
+	return string(out), nil
 }
 
-func (pg *Generator) fromDaemonSet(ds *appsv1.DaemonSet) (string, error) {
+func (pg *Generator) fromDaemonSet(ds *appsv1.DaemonSet, OPAformat bool, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: ds.Name,
 		Kind: ds.Kind,
-	}, ds.Spec.Template.Spec)
+	}, ds.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromDeployment(dep *appsv1.Deployment) (string, error) {
+func (pg *Generator) fromDeployment(dep *appsv1.Deployment, OPAformat bool, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: dep.Name,
 		Kind: dep.Kind,
-	}, dep.Spec.Template.Spec)
+	}, dep.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromReplicaSet(rs *appsv1.ReplicaSet) (string, error) {
+func (pg *Generator) fromReplicaSet(rs *appsv1.ReplicaSet, OPAformat bool, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: rs.Name,
 		Kind: rs.Kind,
-	}, rs.Spec.Template.Spec)
+	}, rs.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromStatefulSet(ss *appsv1.StatefulSet) (string, error) {
+func (pg *Generator) fromStatefulSet(ss *appsv1.StatefulSet, OPAformat bool, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: ss.Name,
 		Kind: ss.Kind,
-	}, ss.Spec.Template.Spec)
+	}, ss.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromReplicationController(rc *corev1.ReplicationController) (string, error) {
+func (pg *Generator) fromReplicationController(rc *corev1.ReplicationController, OPAformat bool, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: rc.Name,
 		Kind: rc.Kind,
-	}, rc.Spec.Template.Spec)
+	}, rc.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromCronJob(cj *batchv1beta1.CronJob) (string, error) {
+func (pg *Generator) fromCronJob(cj *batchv1beta1.CronJob, OPAformat bool, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: cj.Name,
 		Kind: cj.Kind,
-	}, cj.Spec.JobTemplate.Spec.Template.Spec)
+	}, cj.Spec.JobTemplate.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromJob(job *batch.Job) (string, error) {
+func (pg *Generator) fromJob(job *batch.Job, OPAformat bool, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: job.Name,
 		Kind: job.Kind,
-	}, job.Spec.Template.Spec)
+	}, job.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromPod(pod *corev1.Pod) (string, error) {
+func (pg *Generator) fromPod(pod *corev1.Pod, OPAformat bool, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: pod.Name,
 		Kind: pod.Kind,
-	}, pod.Spec)
+	}, pod.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
+func (pg *Generator) FromPodObjString(podObjString string, OPAformat bool, OPAdefaultRule bool) (string, error) {
 
 	podObjJson, err := yaml.YAMLToJSON([]byte(podObjString))
 	if err != nil {
@@ -696,49 +1058,49 @@ func (pg *Generator) FromPodObjString(podObjString string) (string, error) {
 		if err = decoder.Decode(&ds); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as DaemonSet: %v", err)
 		}
-		return pg.fromDaemonSet(&ds)
+		return pg.fromDaemonSet(&ds, OPAformat, OPAdefaultRule)
 	case "Deployment":
 		var dep appsv1.Deployment
 		if err = decoder.Decode(&dep); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as Deployment: %v", err)
 		}
-		return pg.fromDeployment(&dep)
+		return pg.fromDeployment(&dep, OPAformat, OPAdefaultRule)
 	case "ReplicaSet":
 		var rs appsv1.ReplicaSet
 		if err = decoder.Decode(&rs); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as ReplicaSet: %v", err)
 		}
-		return pg.fromReplicaSet(&rs)
+		return pg.fromReplicaSet(&rs, OPAformat, OPAdefaultRule)
 	case "StatefulSet":
 		var ss appsv1.StatefulSet
 		if err = decoder.Decode(&ss); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as StatefulSet: %v", err)
 		}
-		return pg.fromStatefulSet(&ss)
+		return pg.fromStatefulSet(&ss, OPAformat, OPAdefaultRule)
 	case "ReplicationController":
 		var rc corev1.ReplicationController
 		if err = decoder.Decode(&rc); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as ReplicationController: %v", err)
 		}
-		return pg.fromReplicationController(&rc)
+		return pg.fromReplicationController(&rc, OPAformat, OPAdefaultRule)
 	case "CronJob":
 		var cj batchv1beta1.CronJob
 		if err = decoder.Decode(&cj); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as CronJob: %v", err)
 		}
-		return pg.fromCronJob(&cj)
+		return pg.fromCronJob(&cj, OPAformat, OPAdefaultRule)
 	case "Job":
 		var job batch.Job
 		if err = decoder.Decode(&job); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as Job: %v", err)
 		}
-		return pg.fromJob(&job)
+		return pg.fromJob(&job, OPAformat, OPAdefaultRule)
 	case "Pod":
 		var pod corev1.Pod
 		if err = decoder.Decode(&pod); err != nil {
 			return "", fmt.Errorf("Could not unmarshal json document as Pod: %v", err)
 		}
-		return pg.fromPod(&pod)
+		return pg.fromPod(&pod, OPAformat, OPAdefaultRule)
 	}
 
 	return "", fmt.Errorf("K8s Object not one of supported types")

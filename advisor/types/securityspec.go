@@ -89,6 +89,7 @@ type PodSecuritySpec struct {
 	HostNetwork    bool            `json:"hostNetwork,omitempty"`
 	HostIPC        bool            `json:"hostIPC,omitempty"`
 	VolumeTypes    []string        `json:"volumeTypes,omitempty"`
+	VolumeMounts   map[string]bool `json:"volumeMounts,omitempty"` //--> NEW
 	MountHostPaths map[string]bool `json:"mountedHostPath,omitempty"`
 	ServiceAccount string          `json:"serviceAccount,omitempty"`
 	Sysctls        []string        `json:"sysctls,omitempty"`

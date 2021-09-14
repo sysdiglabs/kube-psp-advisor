@@ -12,6 +12,7 @@ var (
 	expectedYamls = []string{
 		"test-yaml/base-busybox.yaml",
 		"test-yaml/psp-grant.yaml",
+		"test-yaml/test-opa.yaml",
 		"test-yaml/srcYamls/busy-box.yaml",
 		"test-yaml/srcYamls/nginx.yaml",
 		"test-yaml/targetYamls/busy-box.yaml",
@@ -33,8 +34,8 @@ func TestReadYamls(t *testing.T) {
 	}
 }
 
-func TestReadYamlFile(t *testing.T) {
-	testYaml := "test-yaml/base-busybox.yaml"
+func TestReadOPAYAmls(t *testing.T) {
+	testYaml := "test-yaml/test-opa.yaml"
 	yamls, err := getWorkLoadYamls(testYaml)
 
 	if err != nil {

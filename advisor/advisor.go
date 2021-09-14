@@ -3,6 +3,7 @@ package advisor
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast"
 	"os"
 
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
@@ -18,6 +19,7 @@ import (
 
 type Advisor struct {
 	podSecurityPolicy *v1beta1.PodSecurityPolicy
+	OPAModulePolicy   *ast.Module
 	k8sClient         *kubernetes.Clientset
 	processor         *processor.Processor
 	report            *report.Report
@@ -41,7 +43,7 @@ func NewAdvisor(kubeconfig string) (*Advisor, error) {
 	}, nil
 }
 
-func (advisor *Advisor) Process(namespace string, excludeNamespaces []string) error {
+func (advisor *Advisor) Process(namespace string, excludeNamespaces []string, OPAformat bool, OPAdefaultRule bool) error {
 	advisor.processor.SetNamespace(namespace)
 	advisor.processor.SetExcludeNamespaces(excludeNamespaces)
 
@@ -51,7 +53,11 @@ func (advisor *Advisor) Process(namespace string, excludeNamespaces []string) er
 		return err
 	}
 
-	advisor.podSecurityPolicy = advisor.processor.GeneratePSP(cssList, pssList)
+	if OPAformat {
+		advisor.OPAModulePolicy = advisor.processor.GenerateOPA(cssList, pssList, OPAdefaultRule)
+	} else {
+		advisor.podSecurityPolicy = advisor.processor.GeneratePSP(cssList, pssList)
+	}
 
 	advisor.report = advisor.processor.GenerateReport(cssList, pssList)
 
@@ -77,6 +83,15 @@ func (advisor *Advisor) PrintPodSecurityPolicy() error {
 	return err
 }
 
+func (advisor *Advisor) PrintOPAPolicy() string {
+	if advisor.OPAModulePolicy != nil {
+		err := advisor.OPAModulePolicy.String()
+		fmt.Printf(err)
+		return err
+	} else {
+		return ""
+	}
+}
 func (advisor *Advisor) GetPodSecurityPolicy() *v1beta1.PodSecurityPolicy {
 	return advisor.podSecurityPolicy
 }
