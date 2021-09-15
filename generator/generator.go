@@ -818,8 +818,6 @@ func (pg *Generator) GenerateOPAPodWithName(
 		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueAddedCap(container)")))
 		valueAddedCapRule := addOPARule("valueAddedCap", "addedCap")
 		valueAddedCapRule.Body.Append(ast.MustParseExpr("caps = {" + strings.Join(addedCap, ",") + "}"))
-		//valueAddedCapRule.Body.Append(ast.MustParseExpr("setAddedCap := {"+basepath+".containers[i].securityContext.capabilities.add[i] | "+basepath+".containers[i].securityContext.capabilities.add[i] != null}"))
-		//valueAddedCapRule.Body.Append(ast.MustParseExpr("count(setAddedCap) > 0"))
 		valueAddedCapRule.Body.Append(ast.MustParseExpr("diff_fields := {label | label := " + basepath + ".containers[_].securityContext.capabilities.add[_]} -  caps"))
 		valueAddedCapRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
 		mod.Rules = append(mod.Rules, valueAddedCapRule)
@@ -829,8 +827,6 @@ func (pg *Generator) GenerateOPAPodWithName(
 		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueDroppedCap(container)")))
 		valueDroppedCapRule := addOPARule("valueDroppedCap", "droppedCap")
 		valueDroppedCapRule.Body.Append(ast.MustParseExpr("caps = {" + strings.Join(droppedCap, ",") + "}"))
-		//valueDroppedCapRule.Body.Append(ast.MustParseExpr("setDroppedCap := {"+basepath+".containers[i].securityContext.capabilities.drop[i] | "+basepath+".containers[i].securityContext.capabilities.drop[i] != null}"))
-		//valueDroppedCapRule.Body.Append(ast.MustParseExpr("count(setDroppedCap) > 0"))
 		valueDroppedCapRule.Body.Append(ast.MustParseExpr("diff_fields := {label | label := " + basepath + ".containers[_].securityContext.capabilities.drop[_]} -  caps"))
 		valueDroppedCapRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
 		mod.Rules = append(mod.Rules, valueDroppedCapRule)
@@ -869,29 +865,6 @@ func (pg *Generator) GenerateOPAPodWithName(
 		valueHostPortRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
 		mod.Rules = append(mod.Rules, valueHostPortRule)
 	}
-
-	/*
-		if len(volumeMounts) > 0{
-			valueSecContextRule.Body.Append(ast.MustParseExpr("volumeMountValue(container)"))
-			valueVolumeMountsRule:= addOPARule("volumeMountValue" ,"container" )
-			valueVolumeMountsRule.Body.Append(ast.MustParseExpr("hostPaths = {"+strings.Join(volumeMountValues, ",")+"}"))
-			valueVolumeMountsRule.Body.Append(ast.MustParseExpr("diff_fields := {label | label := input.request.object.spec.containers[_].volumeMounts[_].name} -  hostPaths"))
-			valueVolumeMountsRule.Body.Append(ast.MustParseExpr("count(diff_fields) <= 0"))
-
-			valueVolumeMountsRule.Body.Append(ast.MustParseExpr("volumeMount := input.request.object.spec.containers[_].volumeMounts[_]"))
-
-			for volume := range volumeMounts {
-				name:=rand.String(3)
-				valueVolumeMountsRule.Body.Append(ast.MustParseExpr("volumeMountValue_" + name + "(volumeMount)"))
-				valueHostPathRule:= addOPARule("volumeMountValue_"+name ,"volumeMount" )
-				valueHostPathRule.Body.Append(ast.MustParseExpr(checkOPADefault(OPAdefaultRule)+"volums.hostPath.path == \"" + volume + "\""))
-				valueHostPathRule.Body.Append(ast.MustParseExpr("volumeMount.readOnly == true"))
-				mod.Rules = append(mod.Rules, valueHostPathRule)
-			}
-
-			mod.Rules = append(mod.Rules, valueVolumeMountsRule)
-		}
-	*/
 
 	// set allowed host path
 
