@@ -342,6 +342,7 @@ func (pg *Generator) GetSecuritySpecFromPodSpec(metadata types.Metadata, namespa
 			RunAsUser:                getRunAsUser(container.SecurityContext, spec.SecurityContext),
 			HostPorts:                getHostPorts(container.Ports),
 			ServiceAccount:           getServiceAccountName(spec),
+			VolumeMounts:             getVolumeMounts(container.VolumeMounts),
 		}
 		cssList = append(cssList, csc)
 	}
@@ -892,4 +893,20 @@ func getNamespace(ns string) string {
 	}
 
 	return "default"
+}
+
+func getVolumeMounts(mounts []corev1.VolumeMount) []types.VolumeMount {
+	list := []types.VolumeMount{}
+
+	for _, vm := range mounts {
+		list = append(list, types.VolumeMount{
+			Name:        vm.Name,
+			MountPath:   vm.MountPath,
+			ReadOnly:    vm.ReadOnly,
+			SubPath:     vm.SubPath,
+			SubPathExpr: vm.SubPathExpr,
+		})
+	}
+
+	return list
 }

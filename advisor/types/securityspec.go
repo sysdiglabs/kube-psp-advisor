@@ -39,26 +39,35 @@ const (
 //	13. seLinux and others - need further investigation
 //  14. allowedUnsafeSysctls - done
 
+type VolumeMount struct {
+	MountPath   string `json:"mountPath"`
+	Name        string `json:"name"`
+	SubPath     string `json:"subPath,omitempty"`
+	ReadOnly    bool   `json:"readOnly,omitempty"`
+	SubPathExpr string `json:"subPathExpr,omitempty"`
+}
+
 type ContainerSecuritySpec struct {
-	Metadata                 Metadata `json:"parentMetadata"`
-	ContainerID              string   `json:"containerID"`
-	ContainerName            string   `json:"containerName"`
-	PodName                  string   `json:"podName"`
-	Namespace                string   `json:"namespace"`
-	ImageName                string   `json:"imageName"`
-	ImageSHA                 string   `json:"imageSHA"`
-	HostName                 string   `json:"hostName"`
-	Capabilities             []string `json:"effectiveCapabilities,omitempty"`
-	DroppedCap               []string `json:"droppedCapabilities,omitempty"`
-	AddedCap                 []string `json:"addedCapabilities,omitempty"`
-	Privileged               bool     `json:"privileged,omitempty"`
-	ReadOnlyRootFS           bool     `json:"readOnlyRootFileSystem,omitempty"`
-	RunAsNonRoot             *bool    `json:"runAsNonRoot,omitempty"`
-	AllowPrivilegeEscalation *bool    `json:"allowPrivilegeEscalation,omitempty"`
-	RunAsUser                *int64   `json:"runAsUser,omitempty"`
-	RunAsGroup               *int64   `json:"runAsGroup,omitempty"`
-	HostPorts                []int32  `json:"hostPorts,omitempty"`
-	ServiceAccount           string   `json:"serviceAccount,omitempty"`
+	Metadata                 Metadata      `json:"parentMetadata"`
+	ContainerID              string        `json:"containerID"`
+	ContainerName            string        `json:"containerName"`
+	PodName                  string        `json:"podName"`
+	Namespace                string        `json:"namespace"`
+	ImageName                string        `json:"imageName"`
+	ImageSHA                 string        `json:"imageSHA"`
+	HostName                 string        `json:"hostName"`
+	Capabilities             []string      `json:"effectiveCapabilities,omitempty"`
+	DroppedCap               []string      `json:"droppedCapabilities,omitempty"`
+	AddedCap                 []string      `json:"addedCapabilities,omitempty"`
+	Privileged               bool          `json:"privileged,omitempty"`
+	ReadOnlyRootFS           bool          `json:"readOnlyRootFileSystem,omitempty"`
+	RunAsNonRoot             *bool         `json:"runAsNonRoot,omitempty"`
+	AllowPrivilegeEscalation *bool         `json:"allowPrivilegeEscalation,omitempty"`
+	RunAsUser                *int64        `json:"runAsUser,omitempty"`
+	RunAsGroup               *int64        `json:"runAsGroup,omitempty"`
+	HostPorts                []int32       `json:"hostPorts,omitempty"`
+	ServiceAccount           string        `json:"serviceAccount,omitempty"`
+	VolumeMounts             []VolumeMount `json:"volumeMounts"`
 }
 
 type PodSecuritySpec struct {
