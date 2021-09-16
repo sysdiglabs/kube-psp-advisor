@@ -16,6 +16,7 @@ const (
 	hostPID                = "hostPID"
 	hostIPC                = "hostIPC"
 	hostNetwork            = "hostNetwork"
+	subPath                = "subPath"
 )
 
 type Report struct {
@@ -40,6 +41,7 @@ func NewReport() *Report {
 	r.Containers[runAsGroup] = []types.ContainerSecuritySpec{}
 	r.Containers[privileged] = []types.ContainerSecuritySpec{}
 	r.Containers[readOnlyRootFileSystem] = []types.ContainerSecuritySpec{}
+	r.Containers[subPath] = []types.ContainerSecuritySpec{}
 
 	// pod related security posture report
 	r.PodSecuritySpecs[hostPID] = []types.PodSecuritySpec{}
@@ -102,5 +104,11 @@ func (r *Report) AddContainer(c types.ContainerSecuritySpec) {
 
 	if c.ReadOnlyRootFS {
 		r.Containers[readOnlyRootFileSystem] = append(r.Containers[readOnlyRootFileSystem], c)
+	}
+
+	for _, vm := range c.VolumeMounts {
+		if vm.UsesSubPath() {
+			r.Containers[subPath] = append(r.Containers[subPath], c)
+		}
 	}
 }
