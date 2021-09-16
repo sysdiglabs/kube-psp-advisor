@@ -47,6 +47,18 @@ type VolumeMount struct {
 	SubPathExpr string `json:"subPathExpr,omitempty"`
 }
 
+func (vm VolumeMount) IsReadOnlyMount() bool {
+	return vm.ReadOnly == true
+}
+
+func (vm VolumeMount) UsesSubPath() bool {
+	if vm.SubPath != "" || vm.SubPathExpr != "" {
+		return true
+	}
+
+	return false
+}
+
 type ContainerSecuritySpec struct {
 	Metadata                 Metadata      `json:"parentMetadata"`
 	ContainerID              string        `json:"containerID"`
