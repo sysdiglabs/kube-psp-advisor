@@ -380,14 +380,14 @@ func (pg *Generator) GenerateOPA(cssList []types.ContainerSecuritySpec,
 	pssList []types.PodSecuritySpec,
 	namespace, serverGitVersion string, OPAdefaultRule bool) *ast.Module {
 
-	return pg.GenerateOPAPodWithName(cssList, pssList, namespace, serverGitVersion, "", OPAdefaultRule)
+	return pg.GenerateOPAWithName(cssList, pssList, namespace, serverGitVersion, "", OPAdefaultRule)
 }
 
 func (pg *Generator) GenerateOPAPod(cssList []types.ContainerSecuritySpec,
 	pssList []types.PodSecuritySpec,
 	namespace, serverGitVersion string, OPAdefaultRule bool) *ast.Module {
 
-	return pg.GenerateOPAPodWithName(cssList, pssList, namespace, serverGitVersion, "", OPAdefaultRule)
+	return pg.GenerateOPAWithName(cssList, pssList, namespace, serverGitVersion, "", OPAdefaultRule)
 }
 
 // GeneratePSP generate Pod Security Policy
@@ -626,7 +626,8 @@ func (pg *Generator) GeneratePSPWithName(
 	return psp
 }
 
-func (pg *Generator) GenerateOPAPodWithName(
+// GenerateOPA generate OPA Policy
+func (pg *Generator) GenerateOPAWithName(
 	cssList []types.ContainerSecuritySpec,
 	pssList []types.PodSecuritySpec,
 	namespace, serverGitVersion, pspName string, OPAdefaultRule bool) *ast.Module {
@@ -685,7 +686,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 		ns = "all"
 	}
 	rule.Body.Append(ast.MustParseExpr("workload := input.request.object"))
-	rule.Body.Append(ast.NewExpr(ast.VarTerm("valueWorkLoadSecContext(workload)")))
+	rule.Body.Append(ast.NewExpr(ast.VarTerm(checkOPADefault(OPAdefaultRule) + "valueWorkLoadSecContext(workload)")))
 	valueWorkLoadSecContext := addOPARule("valueWorkLoadSecContext", "workload")
 
 	for _, wsc := range pssList {
@@ -709,10 +710,12 @@ func (pg *Generator) GenerateOPAPodWithName(
 			}
 		}
 
+		// Sysctls is set
 		for _, s := range wsc.Sysctls {
 			sysctls = append(sysctls, "\""+s+"\"")
 		}
 
+		// Check if workload or pod
 		if wsc.Metadata.Kind == "Deployment" || wsc.Metadata.Kind == "Job" || wsc.Metadata.Kind == "ReplicaSet" || wsc.Metadata.Kind == "DaemonSet" || wsc.Metadata.Kind == "ReplicationController" {
 			basepath = "input.request.object.spec.template.spec"
 		} else {
@@ -723,6 +726,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 
 	valueWorkLoadSecContext.Body.Append(ast.MustParseExpr("container := " + basepath + ".containers[_]"))
 
+	// Add rule hostPaths
 	if len(hostPaths) > 0 {
 		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr("volumeHostPaths(workload)"))
 		valueHostPathRule := addOPARule("volumeHostPaths", "workload")
@@ -744,6 +748,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 		mod.Rules = append(mod.Rules, valueHostPathRule)
 	}
 
+	// Add rule sysctls
 	if len(sysctls) > 0 {
 		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr("valueSysctls(workload)"))
 		valueSysctlsRule := addOPARule("valueSysctls", "sysctls")
@@ -755,12 +760,17 @@ func (pg *Generator) GenerateOPAPodWithName(
 		mod.Rules = append(mod.Rules, valueSysctlsRule)
 	}
 
+	// Add rule hostPid
 	if hostPid {
 		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr(basepath + ".hostPID"))
 	}
+
+	// Add rule HostIPC
 	if HostIPC {
 		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr(basepath + ".hostIPC"))
 	}
+
+	// Add rule HostNet
 	if HostNet {
 		valueWorkLoadSecContext.Body.Append(ast.MustParseExpr(basepath + ".hostNetwork"))
 	}
@@ -795,6 +805,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 			runAsGroupCount++
 		}
 
+		// port is set
 		for _, port := range sc.HostPorts {
 			hostPorts = append(hostPorts, fmt.Sprint(port))
 		}
@@ -814,6 +825,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 
 	valueSecContextRule := addOPARule("valueSecContext", "container")
 
+	// Add rule addedCap
 	if len(addedCap) > 0 {
 		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueAddedCap(container)")))
 		valueAddedCapRule := addOPARule("valueAddedCap", "addedCap")
@@ -823,6 +835,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 		mod.Rules = append(mod.Rules, valueAddedCapRule)
 	}
 
+	// Add rule droppedCap
 	if len(droppedCap) > 0 {
 		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueDroppedCap(container)")))
 		valueDroppedCapRule := addOPARule("valueDroppedCap", "droppedCap")
@@ -832,6 +845,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 		mod.Rules = append(mod.Rules, valueDroppedCapRule)
 	}
 
+	// Add rule runAsUser
 	if len(runAsUser) > 0 {
 		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueRunAsUserID(container)")))
 		valueHostRunAsUserRule := addOPARule("valueRunAsUserID", "uid")
@@ -843,7 +857,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 		mod.Rules = append(mod.Rules, valueHostRunAsUserRule)
 	}
 
-	// runAsGroup is set
+	// Add rule runAsGroup
 	if len(runAsGroup) > 0 {
 		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueRunAsGroupID(container)")))
 		valueHostRunAsGroupRule := addOPARule("valueRunAsGroupID", "gid")
@@ -855,6 +869,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 		mod.Rules = append(mod.Rules, valueHostRunAsGroupRule)
 	}
 
+	// Add rule hostPorts
 	if len(hostPorts) > 0 {
 		valueSecContextRule.Body.Append(ast.NewExpr(ast.VarTerm("valueHostPort(container)")))
 		valueHostPortRule := addOPARule("valueHostPort", "container")
@@ -866,26 +881,29 @@ func (pg *Generator) GenerateOPAPodWithName(
 		mod.Rules = append(mod.Rules, valueHostPortRule)
 	}
 
-	// set allowed host path
-
+	// Add rule Privileged
 	if Privileged {
 		valueSecContextRule.Body.Append(ast.MustParseExpr("container.securityContext.privileged"))
 	}
 
+	// Add rule ReadOnlyRootFS
 	if ReadOnlyRootFS == len(cssList) {
 		valueSecContextRule.Body.Append(ast.MustParseExpr("container.securityContext.readOnlyRootFilesystem"))
 	}
 
+	// Add rule RunAsNonRoot
 	if RunAsNonRoot == len(cssList) {
 		valueSecContextRule.Body.Append(ast.MustParseExpr("container.securityContext.runAsNonRoot"))
 	}
 
+	// Add rule AllowPrivilegeEscalation
 	if AllowPrivilegeEscalation == len(cssList) {
 		valueSecContextRule.Body.Append(ast.MustParseExpr("container.securityContext.allowPrivilegeEscalation == false"))
 	}
+
 	mod.Rules = append(mod.Rules, valueSecContextRule)
 
-	rule.Body.Append(ast.MustParseExpr("message := sprintf(\"Container runs in privileged mode.\", [workload.metadata.name])"))
+	rule.Body.Append(ast.MustParseExpr("message := sprintf(\"Workflow or pod compliant with the policy.\", [workload.metadata.name])"))
 	mod.Package = pack
 	mod.Rules = append(mod.Rules, &rule)
 
@@ -893,6 +911,7 @@ func (pg *Generator) GenerateOPAPodWithName(
 
 }
 
+// deny-by-default option check
 func checkOPADefault(OPAdefaultRule bool) string {
 	if !OPAdefaultRule {
 		return "not "
