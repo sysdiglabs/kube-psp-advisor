@@ -938,7 +938,7 @@ func addOPARule(nameRuleHead string, arg string) *ast.Rule {
 	return &Rule
 }
 
-func (pg *Generator) fromPodObj(metadata types.Metadata, spec corev1.PodSpec, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) fromPodObj(metadata types.Metadata, spec corev1.PodSpec, OPAformat string, OPAdefaultRule bool) (string, error) {
 
 	cssList, pss := pg.GetSecuritySpecFromPodSpec(metadata, "default", spec, nil)
 
@@ -951,7 +951,7 @@ func (pg *Generator) fromPodObj(metadata types.Metadata, spec corev1.PodSpec, OP
 	var mod *ast.Module
 	var out string
 
-	if !OPAformat {
+	if OPAformat == "psp" {
 		psp = pg.GeneratePSP(cssList, pssList, "default", types.Version1_11)
 		pspJson, err := json.Marshal(psp)
 		if err != nil {
@@ -962,7 +962,7 @@ func (pg *Generator) fromPodObj(metadata types.Metadata, spec corev1.PodSpec, OP
 			return "", fmt.Errorf("Could not convert resulting PSP to Json: %v", err)
 		}
 		out = string(pspYaml)
-	} else {
+	} else if OPAformat == "opa" {
 		mod = pg.GenerateOPAPod(cssList, pssList, "default", types.Version1_11, OPAdefaultRule)
 		out = mod.String()
 	}
@@ -970,63 +970,63 @@ func (pg *Generator) fromPodObj(metadata types.Metadata, spec corev1.PodSpec, OP
 	return string(out), nil
 }
 
-func (pg *Generator) fromDaemonSet(ds *appsv1.DaemonSet, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) fromDaemonSet(ds *appsv1.DaemonSet, OPAformat string, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: ds.Name,
 		Kind: ds.Kind,
 	}, ds.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromDeployment(dep *appsv1.Deployment, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) fromDeployment(dep *appsv1.Deployment, OPAformat string, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: dep.Name,
 		Kind: dep.Kind,
 	}, dep.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromReplicaSet(rs *appsv1.ReplicaSet, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) fromReplicaSet(rs *appsv1.ReplicaSet, OPAformat string, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: rs.Name,
 		Kind: rs.Kind,
 	}, rs.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromStatefulSet(ss *appsv1.StatefulSet, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) fromStatefulSet(ss *appsv1.StatefulSet, OPAformat string, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: ss.Name,
 		Kind: ss.Kind,
 	}, ss.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromReplicationController(rc *corev1.ReplicationController, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) fromReplicationController(rc *corev1.ReplicationController, OPAformat string, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: rc.Name,
 		Kind: rc.Kind,
 	}, rc.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromCronJob(cj *batchv1beta1.CronJob, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) fromCronJob(cj *batchv1beta1.CronJob, OPAformat string, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: cj.Name,
 		Kind: cj.Kind,
 	}, cj.Spec.JobTemplate.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromJob(job *batch.Job, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) fromJob(job *batch.Job, OPAformat string, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: job.Name,
 		Kind: job.Kind,
 	}, job.Spec.Template.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) fromPod(pod *corev1.Pod, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) fromPod(pod *corev1.Pod, OPAformat string, OPAdefaultRule bool) (string, error) {
 	return pg.fromPodObj(types.Metadata{
 		Name: pod.Name,
 		Kind: pod.Kind,
 	}, pod.Spec, OPAformat, OPAdefaultRule)
 }
 
-func (pg *Generator) FromPodObjString(podObjString string, OPAformat bool, OPAdefaultRule bool) (string, error) {
+func (pg *Generator) FromPodObjString(podObjString string, OPAformat string, OPAdefaultRule bool) (string, error) {
 
 	podObjJson, err := yaml.YAMLToJSON([]byte(podObjString))
 	if err != nil {

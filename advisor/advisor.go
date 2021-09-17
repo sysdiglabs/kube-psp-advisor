@@ -43,7 +43,7 @@ func NewAdvisor(kubeconfig string) (*Advisor, error) {
 	}, nil
 }
 
-func (advisor *Advisor) Process(namespace string, excludeNamespaces []string, OPAformat bool, OPAdefaultRule bool) error {
+func (advisor *Advisor) Process(namespace string, excludeNamespaces []string, OPAformat string, OPAdefaultRule bool) error {
 	advisor.processor.SetNamespace(namespace)
 	advisor.processor.SetExcludeNamespaces(excludeNamespaces)
 
@@ -53,9 +53,9 @@ func (advisor *Advisor) Process(namespace string, excludeNamespaces []string, OP
 		return err
 	}
 
-	if OPAformat {
+	if OPAformat == "opa" {
 		advisor.OPAModulePolicy = advisor.processor.GenerateOPA(cssList, pssList, OPAdefaultRule)
-	} else {
+	} else if OPAformat == "psp" {
 		advisor.podSecurityPolicy = advisor.processor.GeneratePSP(cssList, pssList)
 	}
 
