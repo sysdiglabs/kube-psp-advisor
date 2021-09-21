@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/ast"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/open-policy-agent/opa/ast"
 
 	"k8s.io/client-go/kubernetes/scheme"
 

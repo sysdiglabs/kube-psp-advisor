@@ -2,9 +2,10 @@ package processor
 
 import (
 	"fmt"
-	"github.com/open-policy-agent/opa/ast"
 	"sort"
 	"strings"
+
+	"github.com/open-policy-agent/opa/ast"
 
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/report"
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"

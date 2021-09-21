@@ -3,8 +3,9 @@ package advisor
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/ast"
 	"os"
+
+	"github.com/open-policy-agent/opa/ast"
 
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
 
