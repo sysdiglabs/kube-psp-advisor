@@ -16,6 +16,8 @@ var (
 		"test-yaml/srcYamls/nginx.yaml",
 		"test-yaml/targetYamls/busy-box.yaml",
 		"test-yaml/targetYamls/nginx.yaml",
+		"test-yaml/targetYamls/web-deployment.yaml",
+		"test-yaml/test-opa.yaml",
 	}
 )
 
@@ -30,18 +32,5 @@ func TestReadYamls(t *testing.T) {
 
 	if strings.Join(yamls, ";") != strings.Join(expectedYamls, ";") {
 		t.Fatalf("expected: %s\nactual: %s\n", expectedYamls, yamls)
-	}
-}
-
-func TestReadYamlFile(t *testing.T) {
-	testYaml := "test-yaml/base-busybox.yaml"
-	yamls, err := getWorkLoadYamls(testYaml)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(yamls) != 1 && yamls[0] != "test-yaml/base-busybox.yaml" {
-		t.Fatalf("expected: %s\nactual: %s\n", testYaml, yamls[0])
 	}
 }

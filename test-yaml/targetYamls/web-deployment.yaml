@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: apache-unomi
+  name: apache-unomi-aaa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apache-unomi
+  template:
+    metadata:
+      labels:
+        app: apache-unomi
+    spec:
+      hostIPC: false
+      hostNetwork: true
+      containers:
+        - name: apache-unomi
+          image: vulhub/unomi:1.5.1
+          env:
+            - name: UNOMI_ELASTICSEARCH_ADDRESSES
+              valueFrom:
+                configMapKeyRef:
+                  name: elasticsearch-configmap
+                  key: db_host
+          securityContext:
+            privileged: false
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsUser: 2000
+            runAsGroup: 3000
+            capabilities:
+              drop:
+                - SYS_CHROOT
+          volumeMounts:
+            - name: tmp
+              mountPath: /var/tmp
+            - name: security-context-vol
+              mountPath: /data/test
+              readOnly: true
+          ports:
+            - containerPort: 8181
+              hostPort: 8181
+      volumes:
+        - name: tmp
+          hostPath:
+            path: /tmp
+            type: Directory
+        - name: security-context-vol
+          hostPath:
+            path: /test
+            type: Directory 

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/open-policy-agent/opa/ast"
+
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/report"
 	"github.com/sysdiglabs/kube-psp-advisor/advisor/types"
 	"github.com/sysdiglabs/kube-psp-advisor/generator"
@@ -77,6 +79,10 @@ func (p *Processor) getFieldSelector() string {
 // GeneratePSP generates Pod Security Policy
 func (p *Processor) GeneratePSP(cssList []types.ContainerSecuritySpec, pssList []types.PodSecuritySpec) *v1beta1.PodSecurityPolicy {
 	return p.gen.GeneratePSP(cssList, pssList, p.namespace, p.serverGitVersion)
+}
+
+func (p *Processor) GenerateOPA(cssList []types.ContainerSecuritySpec, pssList []types.PodSecuritySpec, OPAdefaultRule bool) *ast.Module {
+	return p.gen.GenerateOPA(cssList, pssList, p.namespace, p.serverGitVersion, OPAdefaultRule)
 }
 
 // GeneratePSPGrant generates Pod Security Policies, Roles, RoleBindings for service accounts to use PSP

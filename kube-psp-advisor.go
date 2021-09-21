@@ -23,14 +23,14 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
-func inspectPsp(kubeconfig string, namespace string, excludeNamespaces []string, withReport, withGrant bool) error {
+func inspect(kubeconfig string, namespace string, excludeNamespaces []string, withReport, withGrant bool, OPAformat string, OPAdefaultRule bool) error {
 	advisor, err := advisor.NewAdvisor(kubeconfig)
 
 	if err != nil {
 		return fmt.Errorf("Could not create advisor object: %v", err)
 	}
 
-	err = advisor.Process(namespace, excludeNamespaces)
+	err = advisor.Process(namespace, excludeNamespaces, OPAformat, OPAdefaultRule)
 
 	if err != nil {
 		return fmt.Errorf("Could not run advisor to inspect cluster and generate PSP: %v", err)
@@ -44,16 +44,22 @@ func inspectPsp(kubeconfig string, namespace string, excludeNamespaces []string,
 	if withGrant {
 		return advisor.PrintPodSecurityPolicyWithGrants()
 	}
-	err = advisor.PrintPodSecurityPolicy()
 
-	if err != nil {
-		return fmt.Errorf("Could not print PSP: %v", err)
+	if OPAformat == "psp" {
+		err = advisor.PrintPodSecurityPolicy()
+		if err != nil {
+			return fmt.Errorf("Could not print PSP: %v", err)
+		}
+	} else if OPAformat == "opa" {
+		opaRuleOutput := advisor.PrintOPAPolicy()
+		if opaRuleOutput == "" {
+			return fmt.Errorf("Could not print OPA rule: %v", err)
+		}
 	}
-
 	return nil
 }
 
-func convertPsp(podObjFilename string, pspFilename string) error {
+func convert(podObjFilename string, pspFilename string, OPAformat string, OPAdefaultRule bool) error {
 	podObjFile, err := os.Open(podObjFilename)
 	if err != nil {
 		return fmt.Errorf("Could not open pod object file %s for reading: %v", podObjFilename, err)
@@ -75,7 +81,7 @@ func convertPsp(podObjFilename string, pspFilename string) error {
 		return fmt.Errorf("failed to create PSP Generator: %v", err)
 	}
 
-	pspString, err := psp_gen.FromPodObjString(string(podObjString))
+	pspString, err := psp_gen.FromPodObjString(string(podObjString), OPAformat, OPAdefaultRule)
 	if err != nil {
 		return fmt.Errorf("failed to generate PSP from pod Object: %v", err)
 	}
@@ -134,6 +140,8 @@ func main() {
 	var excludeNamespaces []string
 	var podObjFilename string
 	var pspFilename string
+	var OPAformat string
+	var OPAdefaultRule bool
 	var logLevel string
 	var srcYamlDir string
 	var targetYamlDir string
@@ -163,7 +171,9 @@ func main() {
 		Short: "Inspect a live K8s Environment to generate a PodSecurityPolicy",
 		Long:  "Fetch all objects in the provided namespace to generate a Pod Security Policy",
 		Run: func(cmd *cobra.Command, args []string) {
-			err := inspectPsp(kubeconfig, namespace, excludeNamespaces, withReport, withGrant)
+
+			err := inspect(kubeconfig, namespace, excludeNamespaces, withReport, withGrant, OPAformat, OPAdefaultRule)
+
 			if err != nil {
 				log.Fatalf("Could not run inspect command: %v", err)
 			}
@@ -182,10 +192,11 @@ func main() {
 			if pspFilename == "" {
 				log.Fatalf("--pspFile must be provided")
 			}
+
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			err := convertPsp(podObjFilename, pspFilename)
+			err := convert(podObjFilename, pspFilename, OPAformat, OPAdefaultRule)
 			if err != nil {
 				log.Fatalf("Could not run convert command: %v", err)
 			}
@@ -223,9 +234,13 @@ func main() {
 	inspectCmd.Flags().BoolVarP(&withGrant, "grant", "g", false, "(optional) return with pod security policies, roles and rolebindings")
 	inspectCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "(optional) namespace")
 	inspectCmd.Flags().StringSliceVarP(&excludeNamespaces, "exclude-namespaces", "e", []string{}, "(optional) comma separated list of namespaces to exclude")
+	inspectCmd.Flags().StringVarP(&OPAformat, "policy", "p", "", "set policy type. Default psp")
+	inspectCmd.Flags().BoolVarP(&OPAdefaultRule, "OPADefaultRule", "", false, "(optional) OPA Default Rule: use this option iF OPA Default Rule is Deny ALL")
 
 	convertCmd.Flags().StringVar(&podObjFilename, "podFile", "", "Path to a yaml file containing an object with a pod Spec")
-	convertCmd.Flags().StringVar(&pspFilename, "pspFile", "", "Write the resulting PSP to this file")
+	convertCmd.Flags().StringVar(&pspFilename, "pspFile", "", "Write the resulting output to this file")
+	convertCmd.Flags().StringVarP(&OPAformat, "policy", "p", "psp", "set policy type. Default psp")
+	convertCmd.Flags().BoolVarP(&OPAdefaultRule, "deny-by-default", "", false, "(optional) OPA Default Rule: use this option if OPA Default Rule is Deny ALL")
 
 	compareCmd.Flags().StringVar(&srcYamlDir, "sourceDir", "", "Source YAML directory to load YAMLs")
 	compareCmd.Flags().StringVar(&targetYamlDir, "targetDir", "", "Target YAML directory to load YAMLs")

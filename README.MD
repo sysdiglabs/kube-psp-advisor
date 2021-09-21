@@ -1,8 +1,8 @@
 # Kube PodSecurityPolicy Advisor
 
-kube-psp-advisor is a tool that makes it easier to create K8s Pod Security Policies (PSPs) from either a live K8s environment or from a single .yaml file containing a pod specification (Deployment, DaemonSet, Pod, etc).
+kube-psp-advisor is a tool that makes it easier to create K8s Pod Security Policies (PSPs) or OPA Policy from either a live K8s environment or from a single .yaml file containing a pod specification (Deployment, DaemonSet, Pod, etc).
 
-It has 2 subcommands, `kube-psp-advisor inspect` and `kube-psp-advisor convert`. `inspect` connects to a K8s API server, scans the security context of workloads in a given namespace or the entire cluster, and generates a PSP based on the security context. `convert` works without connecting to an API Server, reading a single .yaml file containing a object with a pod spec and generating a PSP based on the file.
+It has 2 subcommands, `kube-psp-advisor inspect` and `kube-psp-advisor convert`. `inspect` connects to a K8s API server, scans the security context of workloads in a given namespace or the entire cluster, and generates a PSP or an OPA Policy based on the security context. `convert` works without connecting to an API Server, reading a single .yaml file containing a object with a pod spec and generating a PSP or OPA Policy based on the file.
 
 ## Installation as a Krew Plugin
 
@@ -20,8 +20,12 @@ The plugin will be available as `kubectl advise-psp`.
    - 2.1 ```./kube-psp-advisor inspect --report``` to print the details reports (why this PSP is recommended for the cluster)
    - 2.2 ```./kube-psp-advisor inspect --grant``` to print PSPs, roles and rolebindings for service accounts (refer to [psp-grant.yaml](./test-yaml/psp-grant.yaml))
    - 2.3 ```./kube-psp-advisor inspect --namespace=<ns>``` to print report or PSP(s) within a given namespace (default to all) 
+   - 2.4 ```./kube-psp-advisor inspect --opa``` to generate OPA Policy based on running cluster configuration
+   - 2.5 ```./kube-psp-advisor inspect --opa --deny-by-default``` to generate an OPA Policy, where OPA Default Rule is Deny ALL
 4. ```./kube-psp-advisor convert --podFile <path> --pspFile <path>``` to generate a PSP from a single .yaml file.
-
+   - 4.1 ```./kube-psp-advisor convert --podFile <path> --pspFile <path> --opa``` to generate an OPA Policy from a single .yaml file.
+   - 4.2 ```./kube-psp-advisor convert --podFile <path> --pspFile <path> --opa --deny-by-default``` to generate an OPA Policy from a single .yaml file, where OPA Default Rule is Deny ALL.
+    
 ## Build and Run as Container
 1. ```docker build -t <Image Name> -f container/Dockerfile .```
 2. ```docker run -v ~/.kube:/root/.kube -v ~/.aws:/root/.aws <Image Name>``` (the `.aws` folder mount is optional and totally depends on your clould provider)
@@ -29,6 +33,7 @@ The plugin will be available as `kubectl advise-psp`.
 ## Use Cases
 1. Help verify the deployment, daemonset settings in cluster and plan to reduce unnecessary privileges/resources
 2. Apply Pod Security Policy to the target cluster
+3. Apply OPA Policy to the target cluster
 3. flag `--namespace=<namespace>` is introduced to debug and narrow down the security context per namespace
 
 ## Attributes Aggregated for Pod Security Policy
