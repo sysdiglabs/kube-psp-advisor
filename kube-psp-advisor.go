@@ -23,6 +23,13 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
+var (
+	validPolicyTypes = map[string]bool{
+		"psp": true,
+		"opa": true,
+	}
+)
+
 func inspect(kubeconfig string, namespace string, excludeNamespaces []string, withReport, withGrant bool, OPAformat string, OPAdefaultRule bool) error {
 	advisor, err := advisor.NewAdvisor(kubeconfig)
 
@@ -140,8 +147,8 @@ func main() {
 	var excludeNamespaces []string
 	var podObjFilename string
 	var pspFilename string
-	var OPAformat string
-	var OPAdefaultRule bool
+	var policyType string
+	var denyByDefault bool
 	var logLevel string
 	var srcYamlDir string
 	var targetYamlDir string
@@ -168,11 +175,17 @@ func main() {
 
 	var inspectCmd = &cobra.Command{
 		Use:   "inspect",
-		Short: "Inspect a live K8s Environment to generate a PodSecurityPolicy",
-		Long:  "Fetch all objects in the provided namespace to generate a Pod Security Policy",
+		Short: "Inspect a live K8s Environment to generate a PodSecurityPolicy or OPA policy",
+		Long:  "Fetch all objects in the provided namespace to generate a Pod Security Policy or OPA policy",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			if !validPolicyType(policyType) {
+				log.Fatalf("invalid policy type")
+			}
+		},
+
 		Run: func(cmd *cobra.Command, args []string) {
 
-			err := inspect(kubeconfig, namespace, excludeNamespaces, withReport, withGrant, OPAformat, OPAdefaultRule)
+			err := inspect(kubeconfig, namespace, excludeNamespaces, withReport, withGrant, policyType, denyByDefault)
 
 			if err != nil {
 				log.Fatalf("Could not run inspect command: %v", err)
@@ -182,8 +195,8 @@ func main() {
 
 	var convertCmd = &cobra.Command{
 		Use:   "convert",
-		Short: "Generate a PodSecurityPolicy from a single K8s Yaml file",
-		Long:  "Generate a PodSecurityPolicy from a single K8s Yaml file containing a pod Spec e.g. DaemonSet, Deployment, ReplicaSet, StatefulSet, ReplicationController, CronJob, Job, or Pod",
+		Short: "Generate a PodSecurityPolicy or OPA policy from a single K8s Yaml file",
+		Long:  "Generate a PodSecurityPolicy or OPA policy from a single K8s Yaml file containing a pod Spec e.g. DaemonSet, Deployment, ReplicaSet, StatefulSet, ReplicationController, CronJob, Job, or Pod",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			if podObjFilename == "" {
 				log.Fatalf("--podFile must be provided")
@@ -193,10 +206,14 @@ func main() {
 				log.Fatalf("--pspFile must be provided")
 			}
 
+			if !validPolicyType(policyType) {
+				log.Fatalf("invalid policy type")
+			}
+
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			err := convert(podObjFilename, pspFilename, OPAformat, OPAdefaultRule)
+			err := convert(podObjFilename, pspFilename, policyType, denyByDefault)
 			if err != nil {
 				log.Fatalf("Could not run convert command: %v", err)
 			}
@@ -234,13 +251,13 @@ func main() {
 	inspectCmd.Flags().BoolVarP(&withGrant, "grant", "g", false, "(optional) return with pod security policies, roles and rolebindings")
 	inspectCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "(optional) namespace")
 	inspectCmd.Flags().StringSliceVarP(&excludeNamespaces, "exclude-namespaces", "e", []string{}, "(optional) comma separated list of namespaces to exclude")
-	inspectCmd.Flags().StringVarP(&OPAformat, "policy", "p", "", "set policy type. Default psp")
-	inspectCmd.Flags().BoolVarP(&OPAdefaultRule, "OPADefaultRule", "", false, "(optional) OPA Default Rule: use this option iF OPA Default Rule is Deny ALL")
+	inspectCmd.Flags().StringVarP(&policyType, "policy", "p", "psp", "set policy type, valid policy types: psp and opa")
+	inspectCmd.Flags().BoolVarP(&denyByDefault, "deny-by-default", "", false, "(optional) OPA default rule: use this option if OPA default rule is Deny ALL")
 
 	convertCmd.Flags().StringVar(&podObjFilename, "podFile", "", "Path to a yaml file containing an object with a pod Spec")
 	convertCmd.Flags().StringVar(&pspFilename, "pspFile", "", "Write the resulting output to this file")
-	convertCmd.Flags().StringVarP(&OPAformat, "policy", "p", "psp", "set policy type. Default psp")
-	convertCmd.Flags().BoolVarP(&OPAdefaultRule, "deny-by-default", "", false, "(optional) OPA Default Rule: use this option if OPA Default Rule is Deny ALL")
+	convertCmd.Flags().StringVarP(&policyType, "policy", "p", "psp", "set policy type, valid policy types: psp and opa)")
+	convertCmd.Flags().BoolVarP(&denyByDefault, "deny-by-default", "", false, "(optional) OPA default rule: use this option if OPA default rule is Deny ALL")
 
 	compareCmd.Flags().StringVar(&srcYamlDir, "sourceDir", "", "Source YAML directory to load YAMLs")
 	compareCmd.Flags().StringVar(&targetYamlDir, "targetDir", "", "Target YAML directory to load YAMLs")
@@ -270,4 +287,10 @@ func getWorkLoadYamls(dir string) ([]string, error) {
 	}
 
 	return yamls, nil
+}
+
+func validPolicyType(policyType string) bool {
+	_, exists := validPolicyTypes[strings.ToLower(policyType)]
+
+	return exists
 }
