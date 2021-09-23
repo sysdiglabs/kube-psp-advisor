@@ -20,8 +20,8 @@ The plugin will be available as `kubectl advise-psp`.
    - 2.1 ```./kube-psp-advisor inspect --report``` to print the details reports (why this PSP is recommended for the cluster)
    - 2.2 ```./kube-psp-advisor inspect --grant``` to print PSPs, roles and rolebindings for service accounts (refer to [psp-grant.yaml](./test-yaml/psp-grant.yaml))
    - 2.3 ```./kube-psp-advisor inspect --namespace=<ns>``` to print report or PSP(s) within a given namespace (default to all) 
-   - 2.4 ```./kube-psp-advisor inspect --opa``` to generate OPA Policy based on running cluster configuration
-   - 2.5 ```./kube-psp-advisor inspect --opa --deny-by-default``` to generate an OPA Policy, where OPA Default Rule is Deny ALL
+   - 2.4 ```./kube-psp-advisor inspect --policy opa``` to generate OPA Policy based on running cluster configuration
+   - 2.5 ```./kube-psp-advisor inspect --policy opa --deny-by-default``` to generate an OPA Policy, where OPA Default Rule is Deny ALL
 4. ```./kube-psp-advisor convert --podFile <path> --pspFile <path>``` to generate a PSP from a single .yaml file.
    - 4.1 ```./kube-psp-advisor convert --podFile <path> --pspFile <path> --opa``` to generate an OPA Policy from a single .yaml file.
    - 4.2 ```./kube-psp-advisor convert --podFile <path> --pspFile <path> --opa --deny-by-default``` to generate an OPA Policy from a single .yaml file, where OPA Default Rule is Deny ALL.
@@ -32,9 +32,8 @@ The plugin will be available as `kubectl advise-psp`.
 
 ## Use Cases
 1. Help verify the deployment, daemonset settings in cluster and plan to reduce unnecessary privileges/resources
-2. Apply Pod Security Policy to the target cluster
-3. Apply OPA Policy to the target cluster
-3. flag `--namespace=<namespace>` is introduced to debug and narrow down the security context per namespace
+2. Apply Pod Security Policy or OPA policy to the target cluster
+3. Using flag `--namespace=<namespace>` with `--report` to debug and narrow down the security context per namespace
 
 ## Attributes Aggregated for Pod Security Policy
 - allowPrivilegeEscalation
